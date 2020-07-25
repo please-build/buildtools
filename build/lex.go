@@ -516,7 +516,7 @@ func (in *input) Lex(val *yySymType) int {
 		}
 		return c
 
-	case 'r': // possible beginning of raw quoted string
+	case 'r', 'f': // possible beginning of raw quoted string or f-string
 		if len(in.remaining) < 2 || in.remaining[1] != '"' && in.remaining[1] != '\'' {
 			break
 		}

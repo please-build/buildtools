@@ -76,6 +76,8 @@ func Unquote(quoted string) (s string, triple bool, err error) {
 	if strings.HasPrefix(quoted, "r") {
 		raw = true
 		quoted = quoted[1:]
+	} else if strings.HasPrefix(quoted, "f") {
+		quoted = quoted[1:]
 	}
 
 	if len(quoted) < 2 {
