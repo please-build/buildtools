@@ -708,6 +708,14 @@ parameter:
 	{
 		$$ = binary($1, $2, $<tok>2, $3)
 	}
+|	ident ':' test
+	{
+		$$ = binary($1, $2, $<tok>2, $3)
+	}
+|	ident ':' test '=' test
+	{
+		$$ = binary($1, $2, $<tok>2, $3)
+	}
 |	'*' ident
 	{
 		$$ = unary($1, $<tok>1, $2)
