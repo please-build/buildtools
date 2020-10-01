@@ -437,6 +437,20 @@ func (p *printer) expr(v Expr, outerPrec int) {
 				p.printf("%s", token)
 				break
 			}
+			if strings.HasPrefix(v.Token, `f`) {
+				// f-string literal
+				token := v.Token
+				if strings.HasSuffix(v.Token, `'`) && !strings.ContainsRune(v.Value, '"') {
+					// Single quotes but no double quotes inside the string, replace with double quotes
+					if strings.HasSuffix(token, `'''`) {
+						token = `f"""` + token[4:len(token)-3] + `"""`
+					} else if strings.HasSuffix(token, `'`) {
+						token = `f"` + token[2:len(token)-1] + `"`
+					}
+				}
+				p.printf("%s", token)
+				break
+			}
 
 			// Non-raw string literal
 			if strings.HasPrefix(v.Token, `"`) || strings.ContainsRune(v.Value, '"') {
