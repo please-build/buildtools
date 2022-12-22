@@ -262,6 +262,14 @@ func IndexOfRuleByName(f *build.File, name string) (int, *build.Rule) {
 		if r.Name() == name || start.Line == linenum {
 			return i, r
 		}
+
+		// Allow for precisely targeting the package declaration. This
+		// helps adding new load() and license() rules
+		if name == "__pkg__" {
+			if rule, ok := ExprToRule(stmt, "package"); ok {
+				return i, rule
+			}
+		}
 	}
 	return -1, nil
 }
@@ -956,6 +964,31 @@ func UsedSymbols(stmt build.Expr) map[string]bool {
 			}
 		}
 		symbols[literal.Name] = true
+	})
+	return symbols
+}
+
+// UsedTypes returns the set of types used in the BUILD file (variables, function names).
+func UsedTypes(stmt build.Expr) map[string]bool {
+	symbols := make(map[string]bool)
+	build.Walk(stmt, func(expr build.Expr, stack []build.Expr) {
+		// Don't traverse inside load statements
+		if len(stack) > 0 {
+			if _, ok := stack[len(stack)-1].(*build.LoadStmt); ok {
+				return
+			}
+		}
+		// Types can only be found in method declarations and
+		switch expr := expr.(type) {
+		case *build.TypedIdent:
+			for _, t := range build.GetTypes(expr) {
+				symbols[t] = true
+			}
+		case *build.DefStmt:
+			for _, t := range build.GetTypes(expr) {
+				symbols[t] = true
+			}
+		}
 	})
 	return symbols
 }
