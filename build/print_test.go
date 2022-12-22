@@ -64,8 +64,10 @@ func testFormat(t *testing.T, input, output string, isBuild bool) {
 // Test that reading and then writing the golden files
 // does not change their output.
 func TestPrintGolden(t *testing.T) {
-	outs, chdir := findTests(t, ".golden")
-	defer chdir()
+	outs, err := filepath.Glob("testdata/*.golden")
+	if err != nil {
+		t.Fatalf("failed to load test data: %v", err)
+	}
 
 	// Run the tests with --type=build
 	for _, out := range outs {

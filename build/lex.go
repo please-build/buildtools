@@ -716,6 +716,10 @@ func (in *input) order(v Expr) {
 		// nothing
 	case *StringExpr:
 		// nothing
+	case *MultiPartStringExpr:
+		for _, x := range v.Strings {
+			in.order(x)
+		}
 	case *Ident:
 		// nothing
 	case *TypedIdent:

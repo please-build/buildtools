@@ -44,6 +44,7 @@ package build
 	kv        *KeyValueExpr
 	kvs       []*KeyValueExpr
 	string    *StringExpr
+	strings   []*StringExpr
 	ifstmt    *IfStmt
 	loadarg   *struct{from Ident; to Ident}
 	loadargs  []*struct{from Ident; to Ident}
@@ -161,6 +162,7 @@ package build
 %type	<kv>		keyvalue
 %type	<kvs>		keyvalues
 %type	<kvs>		keyvalues_no_comma
+%type	<strings>	strings
 %type	<string>	string
 %type	<exprs>		suite
 %type	<exprs>		comments
@@ -501,6 +503,10 @@ semi_opt:
 primary_expr:
 	ident
 |	number
+|	strings
+	{
+		$$ = &MultiPartStringExpr{Strings: $1}
+	}
 |	string
 	{
 		$$ = $1
@@ -984,7 +990,6 @@ loop_vars:
 		tuple.List = append(tuple.List, $3)
 		$$ = tuple
 	}
-
 string:
 	_STRING
 	{
@@ -995,6 +1000,15 @@ string:
 			End: $1.add($<tok>1),
 			Token: $<tok>1,
 		}
+	}
+strings:
+	string string
+	{
+		$$ = []*StringExpr{$1, $2}
+	}
+|	strings string
+	{
+		$$ = append($1, $2)
 	}
 
 ident:

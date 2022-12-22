@@ -504,6 +504,14 @@ func (p *printer) expr(v Expr, outerPrec int) {
 
 		p.printf("%s", quote(v.Value, v.TripleQuote))
 
+	case *MultiPartStringExpr:
+		for i, str := range v.Strings {
+			p.expr(str, outerPrec)
+			if i < len(v.Strings)-1 {
+				p.breakline()
+			}
+		}
+
 	case *DotExpr:
 		addParen(precSuffix)
 		p.expr(v.X, precSuffix)

@@ -273,6 +273,28 @@ func (x *StringExpr) Copy() Expr {
 	return &n
 }
 
+type MultiPartStringExpr struct {
+	Comments
+	Strings []*StringExpr
+}
+
+// Span returns the start and end positions of the node
+func (x *MultiPartStringExpr) Span() (Position, Position) {
+	start, _ := x.Strings[0].Span()
+	_, end := x.Strings[len(x.Strings)-1].Span()
+	return start, end
+}
+
+//Copy creates and returns a non-deep copy of StringExpr
+func (x *MultiPartStringExpr) Copy() Expr {
+	n := new(MultiPartStringExpr)
+	n.Strings = make([]*StringExpr, 0, len(x.Strings))
+	for _, str := range x.Strings {
+		n.Strings = append(n.Strings, str.Copy().(*StringExpr))
+	}
+	return n
+}
+
 // An End represents the end of a parenthesized or bracketed expression.
 // It is a place to hang comments.
 type End struct {
