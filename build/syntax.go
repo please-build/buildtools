@@ -295,6 +295,29 @@ func (x *MultiPartStringExpr) Copy() Expr {
 	return n
 }
 
+type AssertExpr struct {
+	Comments
+	Assert  Position
+	Test    Expr
+	Message Expr
+}
+
+// Span returns the start and end positions of the node
+func (x *AssertExpr) Span() (start, end Position) {
+	if x.Message != nil {
+		_, end = x.Message.Span()
+	} else {
+		_, end = x.Test.Span()
+	}
+	return x.Assert, end
+}
+
+//Copy creates and returns a non-deep copy of End
+func (x *AssertExpr) Copy() Expr {
+	n := *x
+	return &n
+}
+
 // An End represents the end of a parenthesized or bracketed expression.
 // It is a place to hang comments.
 type End struct {

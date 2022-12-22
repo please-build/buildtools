@@ -456,6 +456,15 @@ func (p *printer) expr(v Expr, outerPrec int) {
 	case *BranchStmt:
 		p.printf("%s", v.Token)
 
+	case *AssertExpr:
+		p.printf("assert")
+		p.printf(" ")
+		p.expr(v.Test, outerPrec)
+		if v.Message != nil {
+			p.printf(", ")
+			p.expr(v.Message, outerPrec)
+		}
+
 	case *StringExpr:
 		// If the Token is a correct quoting of Value and has double quotes, use it,
 		// also use it if it has single quotes and the value itself contains a double quote symbol

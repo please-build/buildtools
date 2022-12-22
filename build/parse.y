@@ -93,6 +93,7 @@ package build
 
 %token	<pos>	_AUGM    // augmented assignment
 %token	<pos>	_AND     // keyword and
+%token	<pos>	_ASSERT  // keyword assert
 %token	<pos>	_COMMENT // top-level # comment
 %token	<pos>	_EOF     // end of file
 %token	<pos>	_EQ      // operator ==
@@ -182,7 +183,6 @@ package build
 %left	ShiftInstead
 
 %left	'\n'
-%left	_ASSERT
 // '=' and augmented assignments have the lowest precedence
 // e.g. "x = a if c > 0 else 'bar'"
 // followed by
@@ -471,6 +471,21 @@ small_stmt:
 	{
 		$$ = &ReturnStmt{
 			Return: $1,
+		}
+	}
+| 	_ASSERT test
+	{
+		$$ = &AssertExpr{
+			Assert: $1,
+			Test: $2,
+		}
+	}
+| 	_ASSERT test commas expr
+	{
+		$$ = &AssertExpr{
+			Assert: $1,
+			Test: $2,
+			Message: $4,
 		}
 	}
 |	expr '=' expr      { $$ = binary($1, $2, $<tok>2, $3) }

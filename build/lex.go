@@ -670,6 +670,7 @@ var keywordToken = map[string]int{
 	"or":     _OR,
 	"def":    _DEF,
 	"return": _RETURN,
+	"assert": _ASSERT,
 }
 
 // Comment assignment.
@@ -696,6 +697,11 @@ func (in *input) order(v Expr) {
 	case *File:
 		for _, stmt := range v.Stmt {
 			in.order(stmt)
+		}
+	case *AssertExpr:
+		in.order(v.Test)
+		if v.Message != nil {
+			in.order(v.Message)
 		}
 	case *CommentBlock:
 		// nothing
