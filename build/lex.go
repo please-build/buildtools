@@ -665,7 +665,6 @@ var keywordToken = map[string]int{
 	"in":     _IN,
 	"is":     _IS,
 	"lambda": _LAMBDA,
-	"load":   _LOAD,
 	"not":    _NOT,
 	"or":     _OR,
 	"def":    _DEF,
@@ -711,13 +710,6 @@ func (in *input) order(v Expr) {
 			in.order(x)
 		}
 		in.order(&v.End)
-	case *LoadStmt:
-		in.order(v.Module)
-		for i := range v.From {
-			in.order(v.To[i])
-			in.order(v.From[i])
-		}
-		in.order(&v.Rparen)
 	case *LiteralExpr:
 		// nothing
 	case *StringExpr:

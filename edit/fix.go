@@ -341,56 +341,6 @@ func usePlusEqual(f *build.File) bool {
 	return fixed
 }
 
-// cleanUnusedLoads removes symbols from load statements that are not used in the file.
-// It also cleans symbols loaded multiple times, sorts symbol list, and removes load
-// statements when the list is empty.
-func cleanUnusedLoads(f *build.File) bool {
-	symbols := UsedSymbols(f)
-	fixed := false
-
-	var all []build.Expr
-	for _, stmt := range f.Stmt {
-		load, ok := stmt.(*build.LoadStmt)
-		if !ok || ContainsComments(load, "@unused") {
-			all = append(all, stmt)
-			continue
-		}
-		var fromSymbols, toSymbols []*build.Ident
-		for i := range load.From {
-			fromSymbol := load.From[i]
-			toSymbol := load.To[i]
-			if symbols[toSymbol.Name] {
-				// The symbol is actually used
-				fromSymbols = append(fromSymbols, fromSymbol)
-				toSymbols = append(toSymbols, toSymbol)
-				// If the same symbol is loaded twice, we'll remove it.
-				delete(symbols, toSymbol.Name)
-			} else {
-				fixed = true
-			}
-		}
-		if len(toSymbols) > 0 { // Keep the load statement if it loads at least one symbol.
-			sort.Sort(loadArgs{fromSymbols, toSymbols})
-			load.From = fromSymbols
-			load.To = toSymbols
-			all = append(all, load)
-		} else {
-			fixed = true
-			// If the load statement contains before- or after-comments,
-			// keep them by re-attaching to a new CommentBlock node.
-			if len(load.Comment().Before) == 0 && len(load.Comment().After) == 0 {
-				continue
-			}
-			cb := &build.CommentBlock{}
-			cb.Comment().After = load.Comment().Before
-			cb.Comment().After = append(cb.Comment().After, load.Comment().After...)
-			all = append(all, cb)
-		}
-	}
-	f.Stmt = all
-	return fixed
-}
-
 // movePackageDeclarationToTheTop ensures that the call to package() is done
 // before everything else (except comments).
 func movePackageDeclarationToTheTop(f *build.File) bool {
@@ -404,8 +354,7 @@ func movePackageDeclarationToTheTop(f *build.File) bool {
 		_, isComment := stmt.(*build.CommentBlock)
 		_, isString := stmt.(*build.StringExpr)     // typically a docstring
 		_, isAssignExpr := stmt.(*build.AssignExpr) // e.g. variable declaration
-		_, isLoad := stmt.(*build.LoadStmt)
-		if isComment || isString || isAssignExpr || isLoad {
+		if isComment || isString || isAssignExpr {
 			all = append(all, stmt)
 			continue
 		}
@@ -495,8 +444,6 @@ var FileLevelFixes = []struct {
 		"The package declaration should be the first rule in a file"},
 	{"usePlusEqual", usePlusEqual,
 		"Prefer '+=' over 'extend' or 'append'"},
-	{"unusedLoads", cleanUnusedLoads,
-		"Remove unused symbols from load statements"},
 	{"moveLicensesAndDistribs", moveLicensesAndDistribs,
 		"Move licenses and distribs to the package function"},
 }

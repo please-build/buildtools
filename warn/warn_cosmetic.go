@@ -19,7 +19,6 @@ limitations under the License.
 package warn
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -28,90 +27,15 @@ import (
 	"github.com/bazelbuild/buildtools/edit"
 )
 
-func sameOriginLoadWarning(f *build.File) []*LinterFinding {
-	var findings []*LinterFinding
-
-	type loadInfo = struct {
-		load  *build.LoadStmt
-		index int
-	}
-
-	// Indices of first load statements for each module
-	first := make(map[string]loadInfo)
-
-	// Repeated load statements for each module together with their indices
-	repeated := make(map[string][]loadInfo)
-
-	for stmtIndex := 0; stmtIndex < len(f.Stmt); stmtIndex++ {
-		load, ok := f.Stmt[stmtIndex].(*build.LoadStmt)
-		if !ok {
-			continue
-		}
-		module := load.Module.Value
-
-		if _, ok := first[module]; ok {
-			repeated[module] = append(repeated[module], loadInfo{load, stmtIndex})
-		} else {
-			first[load.Module.Value] = loadInfo{load, stmtIndex}
-		}
-	}
-
-	for module, info := range first {
-		reps, ok := repeated[module]
-		if !ok {
-			// Not duplicated
-			continue
-		}
-
-		previousStart, _ := info.load.Span()
-		message := fmt.Sprintf(
-			"There is already a load from %q on line %d. Please merge all loads from the same origin into a single one.",
-			module,
-			previousStart.Line,
-		)
-
-		// Fix
-		newLoad := *info.load
-		newLoad.To = append([]*build.Ident{}, info.load.To...)
-		newLoad.From = append([]*build.Ident{}, info.load.From...)
-
-		start, end := newLoad.Span()
-		if start.Line == end.Line {
-			newLoad.ForceCompact = true
-		}
-
-		replacements := []LinterReplacement{{&f.Stmt[info.index], &newLoad}}
-
-		for _, rep := range reps {
-			newLoad.To = append(newLoad.To, rep.load.To...)
-			newLoad.From = append(newLoad.From, rep.load.From...)
-
-			start, end := rep.load.Span()
-			if start.Line != end.Line {
-				newLoad.ForceCompact = false
-			}
-			replacements = append(replacements, LinterReplacement{&f.Stmt[rep.index], nil})
-		}
-
-		build.SortLoadArgs(&newLoad)
-
-		for _, rep := range reps {
-			findings = append(findings, makeLinterFinding(rep.load.Module, message, replacements...))
-		}
-	}
-	return findings
-}
-
 func packageOnTopWarning(f *build.File) []*LinterFinding {
 	seenRule := false
 	for _, stmt := range f.Stmt {
 		_, isString := stmt.(*build.StringExpr) // typically a docstring
 		_, isComment := stmt.(*build.CommentBlock)
 		_, isAssignExpr := stmt.(*build.AssignExpr) // e.g. variable declaration
-		_, isLoad := stmt.(*build.LoadStmt)
 		_, isPackageGroup := edit.ExprToRule(stmt, "package_group")
 		_, isLicense := edit.ExprToRule(stmt, "licenses")
-		if isString || isComment || isAssignExpr || isLoad || isPackageGroup || isLicense || stmt == nil {
+		if isString || isComment || isAssignExpr || isPackageGroup || isLicense || stmt == nil {
 			continue
 		}
 		if rule, ok := edit.ExprToRule(stmt, "package"); ok {
@@ -126,69 +50,6 @@ func packageOnTopWarning(f *build.File) []*LinterFinding {
 		seenRule = true
 	}
 	return nil
-}
-
-func loadOnTopWarning(f *build.File) []*LinterFinding {
-	if f.Type == build.TypeWorkspace || f.Type == build.TypeModule{
-		// Not applicable to WORKSPACE or MODULE files
-		return nil
-	}
-
-	// Find the misplaced load statements
-	misplacedLoads := make(map[int]*build.LoadStmt)
-	firstStmtIndex := -1 // index of the first seen non-load statement
-	for i := 0; i < len(f.Stmt); i++ {
-		stmt := f.Stmt[i]
-		_, isString := stmt.(*build.StringExpr) // typically a docstring
-		_, isComment := stmt.(*build.CommentBlock)
-		if isString || isComment || stmt == nil {
-			continue
-		}
-		load, ok := stmt.(*build.LoadStmt)
-		if !ok {
-			if firstStmtIndex == -1 {
-				firstStmtIndex = i
-			}
-			continue
-		}
-		if firstStmtIndex == -1 {
-			continue
-		}
-		misplacedLoads[i] = load
-	}
-
-	// Calculate a fix
-	if firstStmtIndex == -1 {
-		firstStmtIndex = 0
-	}
-	offset := len(misplacedLoads)
-	var replacements []LinterReplacement
-	for i := range f.Stmt {
-		if i < firstStmtIndex {
-			// Docstring or a comment in the beginning, skip
-			continue
-		} else if _, ok := misplacedLoads[i]; ok {
-			// A misplaced load statement, should be moved up to the `firstStmtIndex` position
-			replacements = append(replacements, LinterReplacement{&f.Stmt[firstStmtIndex], f.Stmt[i]})
-			firstStmtIndex++
-			offset--
-			if offset == 0 {
-				// No more statements should be moved
-				break
-			}
-		} else {
-			// An actual statement (not a docstring or a comment in the beginning), should be moved
-			// `offset` positions down.
-			replacements = append(replacements, LinterReplacement{&f.Stmt[i+offset], f.Stmt[i]})
-		}
-	}
-
-	var findings []*LinterFinding
-	for _, load := range misplacedLoads {
-		findings = append(findings, makeLinterFinding(load, "Load statements should be at the top of the file.", replacements...))
-	}
-
-	return findings
 }
 
 // compareLoadLabels compares two module names
@@ -231,65 +92,6 @@ func compareLoadLabels(load1Label, load2Label string) bool {
 
 	// both packages are non-empty and not equal, so compare them
 	return package1 < package2
-}
-
-// outOfOrderLoadWarning only sorts consequent chunks of load statements. If applied together with
-// loadOnTopWarning, should be applied after it. This is currently guaranteed by sorting the
-// warning categories names before applying them ("load-on-top" < "out-of-order-load")
-func outOfOrderLoadWarning(f *build.File) []*LinterFinding {
-	var findings []*LinterFinding
-
-	// Consequent chunks of load statements (i.e. without statements of other types between them)
-	var loadsChunks [][]*build.LoadStmt
-	lastLoadIndex := -2
-
-	for i := 0; i < len(f.Stmt); i++ {
-		load, ok := f.Stmt[i].(*build.LoadStmt)
-		if !ok {
-			continue
-		}
-		if i-lastLoadIndex > 1 {
-			// There's a non-load statement between this load and the previous load
-			loadsChunks = append(loadsChunks, []*build.LoadStmt{})
-		}
-		loadsChunks[len(loadsChunks)-1] = append(loadsChunks[len(loadsChunks)-1], load)
-		lastLoadIndex = i
-	}
-
-	// Sort and flatten the chunks
-	var sortedLoads []*build.LoadStmt
-	for _, chunk := range loadsChunks {
-		sortedChunk := append([]*build.LoadStmt{}, chunk...)
-
-		sort.SliceStable(sortedChunk, func(i, j int) bool {
-			load1Label := (sortedChunk)[i].Module.Value
-			load2Label := (sortedChunk)[j].Module.Value
-			return compareLoadLabels(load1Label, load2Label)
-		})
-		sortedLoads = append(sortedLoads, sortedChunk...)
-	}
-
-	// Calculate the replacements
-	var replacements []LinterReplacement
-	loadIndex := 0
-	for stmtIndex := range f.Stmt {
-		if _, ok := f.Stmt[stmtIndex].(*build.LoadStmt); !ok {
-			continue
-		}
-		replacements = append(replacements, LinterReplacement{&f.Stmt[stmtIndex], sortedLoads[loadIndex]})
-		loadIndex++
-	}
-
-	for _, chunk := range loadsChunks {
-		for i, load := range chunk {
-			if i == 0 || !compareLoadLabels(chunk[i].Module.Value, chunk[i-1].Module.Value) {
-				// Correct position
-				continue
-			}
-			findings = append(findings, makeLinterFinding(load, "Load statement is out of its lexicographical order.", replacements...))
-		}
-	}
-	return findings
 }
 
 func unsortedDictItemsWarning(f *build.File) []*LinterFinding {

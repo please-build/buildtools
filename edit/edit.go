@@ -148,7 +148,7 @@ func PackageDeclaration(f *build.File) *build.Rule {
 	call := &build.CallExpr{X: &build.Ident{Name: "package"}}
 	for _, stmt := range f.Stmt {
 		switch stmt.(type) {
-		case *build.CommentBlock, *build.LoadStmt, *build.StringExpr:
+		case *build.CommentBlock, *build.StringExpr:
 			// Skip docstring, comments, and load statements to
 			// find a place to insert the package declaration.
 		default:
@@ -944,13 +944,6 @@ func EditFunction(v build.Expr, name string, f func(x *build.CallExpr, stk []bui
 func UsedSymbols(stmt build.Expr) map[string]bool {
 	symbols := make(map[string]bool)
 	build.Walk(stmt, func(expr build.Expr, stack []build.Expr) {
-		// Don't traverse inside load statements
-		if len(stack) > 0 {
-			if _, ok := stack[len(stack)-1].(*build.LoadStmt); ok {
-				return
-			}
-		}
-
 		literal, ok := expr.(*build.Ident)
 		if !ok {
 			return
@@ -972,12 +965,6 @@ func UsedSymbols(stmt build.Expr) map[string]bool {
 func UsedTypes(stmt build.Expr) map[string]bool {
 	symbols := make(map[string]bool)
 	build.Walk(stmt, func(expr build.Expr, stack []build.Expr) {
-		// Don't traverse inside load statements
-		if len(stack) > 0 {
-			if _, ok := stack[len(stack)-1].(*build.LoadStmt); ok {
-				return
-			}
-		}
 		// Types can only be found in method declarations and
 		switch expr := expr.(type) {
 		case *build.TypedIdent:
@@ -991,163 +978,6 @@ func UsedTypes(stmt build.Expr) map[string]bool {
 		}
 	})
 	return symbols
-}
-
-// NewLoad creates a new LoadStmt node
-func NewLoad(location string, from, to []string) *build.LoadStmt {
-	load := &build.LoadStmt{
-		Module: &build.StringExpr{
-			Value: location,
-		},
-		ForceCompact: true,
-	}
-	for i := range from {
-		load.From = append(load.From, &build.Ident{Name: from[i]})
-		load.To = append(load.To, &build.Ident{Name: to[i]})
-	}
-	return load
-}
-
-// AppendToLoad appends symbols to an existing load statement
-// Returns true if the statement was acually edited (if the required symbols haven't been
-// loaded yet)
-func AppendToLoad(load *build.LoadStmt, from, to []string) bool {
-	symbolsToLoad := make(map[string]string)
-	for i, s := range to {
-		symbolsToLoad[s] = from[i]
-	}
-	for _, ident := range load.To {
-		delete(symbolsToLoad, ident.Name) // Already loaded.
-	}
-
-	if len(symbolsToLoad) == 0 {
-		return false
-	}
-
-	// Append the remaining loads to the load statement.
-	for s := range symbolsToLoad {
-		load.From = append(load.From, &build.Ident{Name: symbolsToLoad[s]})
-		load.To = append(load.To, &build.Ident{Name: s})
-	}
-	return true
-}
-
-// appendLoad tries to find an existing load location and append symbols to it.
-func appendLoad(stmts []build.Expr, location string, from, to []string) bool {
-	symbolsToLoad := make(map[string]string)
-	for i, s := range to {
-		symbolsToLoad[s] = from[i]
-	}
-	var lastLoad *build.LoadStmt
-	for _, s := range stmts {
-		load, ok := s.(*build.LoadStmt)
-		if !ok {
-			continue
-		}
-		if load.Module.Value != location {
-			continue // Loads a different file.
-		}
-		for _, ident := range load.To {
-			delete(symbolsToLoad, ident.Name) // Already loaded.
-		}
-		// Remember the last insert location, but potentially remove more symbols
-		// that are already loaded in other subsequent calls.
-		lastLoad = load
-	}
-	if lastLoad == nil {
-		return false
-	}
-
-	// Append the remaining loads to the last load location.
-	from = []string{}
-	to = []string{}
-	for t, f := range symbolsToLoad {
-		from = append(from, f)
-		to = append(to, t)
-	}
-	AppendToLoad(lastLoad, from, to)
-	return true
-}
-
-// InsertLoad inserts a load statement at the top of the list of statements.
-// The load statement is constructed using a string location and two slices of from- and to-symbols.
-// The function panics if the slices aren't of the same lentgh. Symbols that are already loaded
-// from the given filepath are ignored. If stmts already contains a load for the
-// location in arguments, appends the symbols to load to it.
-func InsertLoad(stmts []build.Expr, location string, from, to []string) []build.Expr {
-	if len(from) != len(to) {
-		panic(fmt.Errorf("length mismatch: %v (from) and %v (to)", len(from), len(to)))
-	}
-
-	if appendLoad(stmts, location, from, to) {
-		return stmts
-	}
-
-	load := NewLoad(location, from, to)
-
-	var all []build.Expr
-	added := false
-	for i, stmt := range stmts {
-		_, isComment := stmt.(*build.CommentBlock)
-		_, isString := stmt.(*build.StringExpr)
-		isDocString := isString && i == 0
-		if isComment || isDocString || added {
-			all = append(all, stmt)
-			continue
-		}
-		all = append(all, load)
-		all = append(all, stmt)
-		added = true
-	}
-	if !added { // Empty file or just comments.
-		all = append(all, load)
-	}
-	return all
-}
-
-// ReplaceLoad removes load statements for passed to-symbols and replaces them with a new
-// load at the top of the list of statements. The new load statement is constructed using
-// a string location and two slices of from- and to-symbols. If stmts already contains a
-// load for the location in arguments, appends the symbols to load to it.
-// The function panics if the slices aren't of the same lentgh.
-func ReplaceLoad(stmts []build.Expr, location string, from, to []string) []build.Expr {
-	if len(from) != len(to) {
-		panic(fmt.Errorf("length mismatch: %v (from) and %v (to)", len(from), len(to)))
-	}
-
-	toSymbols := make(map[string]bool, len(to))
-	for _, name := range to {
-		toSymbols[name] = true
-	}
-
-	// 1. Remove loads that will be replaced.
-	var all []build.Expr
-	for _, stmt := range stmts {
-		load, ok := stmt.(*build.LoadStmt)
-		if !ok {
-			all = append(all, stmt)
-			continue
-		}
-
-		for i, to := range load.To {
-			if toSymbols[to.Name] {
-				if i < len(load.From)-1 {
-					load.From = append(load.From[:i], load.From[i+1:]...)
-					load.To = append(load.To[:i], load.To[i+1:]...)
-				} else {
-					load.From = load.From[:i]
-					load.To = load.To[:i]
-				}
-			}
-		}
-
-		if len(load.To) > 0 {
-			all = append(all, load)
-		}
-	}
-
-	// 2. Insert new loads.
-	return InsertLoad(all, location, from, to)
 }
 
 // ParseLabel parses a Blaze label (eg. //devtools/buildozer:rule), and returns

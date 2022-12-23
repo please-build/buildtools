@@ -747,35 +747,6 @@ func (x *ConditionalExpr) Copy() Expr {
 	return &n
 }
 
-// A LoadStmt loads another module and binds names from it:
-// load(Module, "x", y="foo").
-//
-// The AST is slightly unfaithful to the concrete syntax here because
-// Skylark's load statement, so that it can be implemented in Python,
-// binds some names (like y above) with an identifier and some (like x)
-// without.  For consistency we create fake identifiers for all the
-// strings.
-type LoadStmt struct {
-	Comments
-	Load         Position
-	Module       *StringExpr
-	From         []*Ident // name defined in loading module
-	To           []*Ident // name in loaded module
-	Rparen       End
-	ForceCompact bool // force compact (non-multiline) form when printing
-}
-
-// Span returns the start and end positions of the node
-func (x *LoadStmt) Span() (start, end Position) {
-	return x.Load, x.Rparen.Pos.add(")")
-}
-
-//Copy creates and returns a non-deep copy of LoadStmt
-func (x *LoadStmt) Copy() Expr {
-	n := *x
-	return &n
-}
-
 // A DefStmt represents a function definition expression: def foo(List):.
 type DefStmt struct {
 	Comments
