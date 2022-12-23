@@ -24,8 +24,6 @@ import (
 
 	"github.com/bazelbuild/buildtools/build"
 	"github.com/bazelbuild/buildtools/bzlenv"
-	"github.com/bazelbuild/buildtools/edit"
-	"github.com/bazelbuild/buildtools/tables"
 )
 
 // Bazel API-specific warnings
@@ -132,45 +130,6 @@ func globalVariableUsageCheck(f *build.File, global, alternative string) []*Lint
 	return findings
 }
 
-// insertLoad returns a *LinterReplacement object representing a replacement required for inserting
-// an additional load statement. Returns nil if nothing needs to be changed.
-func insertLoad(f *build.File, module string, symbols []string) *LinterReplacement {
-	// Try to find an existing load statement
-	for i, stmt := range f.Stmt {
-		load, ok := stmt.(*build.LoadStmt)
-		if !ok || load.Module.Value != module {
-			continue
-		}
-
-		// Modify an existing load statement
-		newLoad := *load
-		if !edit.AppendToLoad(&newLoad, symbols, symbols) {
-			return nil
-		}
-		return &LinterReplacement{&(f.Stmt[i]), &newLoad}
-	}
-
-	// Need to insert a new load statement. Can't modify the tree here, so just insert a placeholder
-	// nil statement and return a replacement for it.
-	i := 0
-	for i = range f.Stmt {
-		stmt := f.Stmt[i]
-		_, isComment := stmt.(*build.CommentBlock)
-		_, isString := stmt.(*build.StringExpr)
-		isDocString := isString && i == 0
-		if !isComment && !isDocString {
-			// Insert a nil statement here
-			break
-		}
-	}
-	stmts := append([]build.Expr{}, f.Stmt[:i]...)
-	stmts = append(stmts, nil)
-	stmts = append(stmts, f.Stmt[i:]...)
-	f.Stmt = stmts
-
-	return &LinterReplacement{&(f.Stmt[i]), edit.NewLoad(module, symbols, symbols)}
-}
-
 func notLoadedFunctionUsageCheckInternal(expr *build.Expr, env *bzlenv.Environment, globals []string, loadFrom string) ([]string, []*LinterFinding) {
 	var loads []string
 	var findings []*LinterFinding
@@ -241,58 +200,6 @@ func notLoadedSymbolUsageCheckInternal(expr *build.Expr, env *bzlenv.Environment
 	return loads, findings
 }
 
-// notLoadedUsageCheck checks whether there's a usage of a given not imported function or symbol in the file
-// and adds a load statement if necessary.
-func notLoadedUsageCheck(f *build.File, functions, symbols []string, loadFrom string) []*LinterFinding {
-	toLoad := make(map[string]bool)
-	var findings []*LinterFinding
-
-	var walk func(expr *build.Expr, env *bzlenv.Environment)
-	walk = func(expr *build.Expr, env *bzlenv.Environment) {
-		defer bzlenv.WalkOnceWithEnvironment(*expr, env, walk)
-
-		functionLoads, functionFindings := notLoadedFunctionUsageCheckInternal(expr, env, functions, loadFrom)
-		findings = append(findings, functionFindings...)
-		for _, load := range functionLoads {
-			toLoad[load] = true
-		}
-
-		symbolLoads, symbolFindings := notLoadedSymbolUsageCheckInternal(expr, env, symbols, loadFrom)
-		findings = append(findings, symbolFindings...)
-		for _, load := range symbolLoads {
-			toLoad[load] = true
-		}
-	}
-	var expr build.Expr = f
-	walk(&expr, bzlenv.NewEnvironment())
-
-	if len(toLoad) == 0 {
-		return nil
-	}
-
-	loads := []string{}
-	for l := range toLoad {
-		loads = append(loads, l)
-	}
-
-	sort.Strings(loads)
-	replacement := insertLoad(f, loadFrom, loads)
-	if replacement != nil {
-		// Add the same replacement to all relevant findings.
-		for _, f := range findings {
-			f.Replacement = append(f.Replacement, *replacement)
-		}
-	}
-
-	return findings
-}
-
-// NotLoadedFunctionUsageCheck checks whether there's a usage of a given not imported function in the file
-// and adds a load statement if necessary.
-func NotLoadedFunctionUsageCheck(f *build.File, globals []string, loadFrom string) []*LinterFinding {
-	return notLoadedUsageCheck(f, globals, []string{}, loadFrom)
-}
-
 // makePositional makes the function argument positional (removes the keyword if it exists)
 func makePositional(argument build.Expr) build.Expr {
 	if binary, ok := argument.(*build.AssignExpr); ok {
@@ -360,16 +267,17 @@ func attrConfigurationWarning(f *build.File) []*LinterFinding {
 				makeLinterFinding(param, `cfg = "data" for attr definitions has no effect and should be removed.`,
 					LinterReplacement{expr, &newCall}))
 
-		case "host": {
-			newCall.List = append([]build.Expr{}, newCall.List...)
-			newParam := newCall.List[i].Copy().(*build.AssignExpr)
-			newRHS := newParam.RHS.Copy().(*build.StringExpr)
-			newRHS.Value = "exec"
-			newParam.RHS = newRHS
-			newCall.List[i] = newParam
-			findings = append(findings,
-				makeLinterFinding(param, `cfg = "host" for attr definitions should be replaced by cfg = "exec".`,
-					LinterReplacement{expr, &newCall}))
+		case "host":
+			{
+				newCall.List = append([]build.Expr{}, newCall.List...)
+				newParam := newCall.List[i].Copy().(*build.AssignExpr)
+				newRHS := newParam.RHS.Copy().(*build.StringExpr)
+				newRHS.Value = "exec"
+				newParam.RHS = newRHS
+				newCall.List[i] = newParam
+				findings = append(findings,
+					makeLinterFinding(param, `cfg = "host" for attr definitions should be replaced by cfg = "exec".`,
+						LinterReplacement{expr, &newCall}))
 			}
 
 		default:
@@ -664,55 +572,6 @@ func outputGroupWarning(f *build.File) []*LinterFinding {
 				}))
 	})
 	return findings
-}
-
-func nativeGitRepositoryWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, []string{"git_repository", "new_git_repository"}, "@bazel_tools//tools/build_defs/repo:git.bzl")
-}
-
-func nativeHTTPArchiveWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, []string{"http_archive"}, "@bazel_tools//tools/build_defs/repo:http.bzl")
-}
-
-func nativeAndroidRulesWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl && f.Type != build.TypeBuild {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, tables.AndroidNativeRules, tables.AndroidLoadPath)
-}
-
-func nativeCcRulesWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl && f.Type != build.TypeBuild {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, tables.CcNativeRules, tables.CcLoadPath)
-}
-
-func nativeJavaRulesWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl && f.Type != build.TypeBuild {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, tables.JavaNativeRules, tables.JavaLoadPath)
-}
-
-func nativePyRulesWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl && f.Type != build.TypeBuild {
-		return nil
-	}
-	return NotLoadedFunctionUsageCheck(f, tables.PyNativeRules, tables.PyLoadPath)
-}
-
-func nativeProtoRulesWarning(f *build.File) []*LinterFinding {
-	if f.Type != build.TypeBzl && f.Type != build.TypeBuild {
-		return nil
-	}
-	return notLoadedUsageCheck(f, tables.ProtoNativeRules, tables.ProtoNativeSymbols, tables.ProtoLoadPath)
 }
 
 func contextArgsAPIWarning(f *build.File) []*LinterFinding {

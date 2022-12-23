@@ -122,7 +122,6 @@ var FileWarningMap = map[string]func(f *build.File) []*LinterFinding{
 	"attr-output-default":       attrOutputDefaultWarning,
 	"attr-single-file":          attrSingleFileWarning,
 	"build-args-kwargs":         argsKwargsInBuildFilesWarning,
-	"bzl-visibility":            bzlVisibilityWarning,
 	"confusing-name":            confusingNameWarning,
 	"constant-glob":             constantGlobWarning,
 	"ctx-actions":               ctxActionsWarning,
@@ -137,25 +136,15 @@ var FileWarningMap = map[string]func(f *build.File) []*LinterFinding{
 	"function-docstring-header": functionDocstringHeaderWarning,
 	"function-docstring-args":   functionDocstringArgsWarning,
 	"function-docstring-return": functionDocstringReturnWarning,
-	"git-repository":            nativeGitRepositoryWarning,
-	"http-archive":              nativeHTTPArchiveWarning,
 	"integer-division":          integerDivisionWarning,
 	"keyword-positional-params": keywordPositionalParametersWarning,
 	"list-append":               listAppendWarning,
-	"load":                      unusedLoadWarning,
-	"load-on-top":               loadOnTopWarning,
 	"module-docstring":          moduleDocstringWarning,
 	"name-conventions":          nameConventionsWarning,
-	"native-android":            nativeAndroidRulesWarning,
 	"native-build":              nativeInBuildFilesWarning,
-	"native-cc":                 nativeCcRulesWarning,
-	"native-java":               nativeJavaRulesWarning,
 	"native-package":            nativePackageWarning,
-	"native-proto":              nativeProtoRulesWarning,
-	"native-py":                 nativePyRulesWarning,
 	"no-effect":                 noEffectWarning,
 	"output-group":              outputGroupWarning,
-	"out-of-order-load":         outOfOrderLoadWarning,
 	"overly-nested-depset":      overlyNestedDepsetWarning,
 	"package-name":              packageNameWarning,
 	"package-on-top":            packageOnTopWarning,
@@ -165,7 +154,6 @@ var FileWarningMap = map[string]func(f *build.File) []*LinterFinding{
 	"repository-name":           repositoryNameWarning,
 	"rule-impl-return":          ruleImplReturnWarning,
 	"return-value":              missingReturnValueWarning,
-	"same-origin-load":          sameOriginLoadWarning,
 	"skylark-comment":           skylarkCommentWarning,
 	"skylark-docstring":         skylarkDocstringWarning,
 	"string-iteration":          stringIterationWarning,
@@ -177,8 +165,7 @@ var FileWarningMap = map[string]func(f *build.File) []*LinterFinding{
 
 // MultiFileWarningMap lists the warnings that run on the whole file, but may use other files.
 var MultiFileWarningMap = map[string]func(f *build.File, fileReader *FileReader) []*LinterFinding{
-	"deprecated-function": deprecatedFunctionWarning,
-	"unnamed-macro":       unnamedMacroWarning,
+	"unnamed-macro": unnamedMacroWarning,
 }
 
 // nonDefaultWarnings contains warnings that are enabled by default because they're not applicable

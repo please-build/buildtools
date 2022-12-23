@@ -665,11 +665,11 @@ var keywordToken = map[string]int{
 	"in":     _IN,
 	"is":     _IS,
 	"lambda": _LAMBDA,
-	"load":   _LOAD,
 	"not":    _NOT,
 	"or":     _OR,
 	"def":    _DEF,
 	"return": _RETURN,
+	"assert": _ASSERT,
 }
 
 // Comment assignment.
@@ -697,6 +697,11 @@ func (in *input) order(v Expr) {
 		for _, stmt := range v.Stmt {
 			in.order(stmt)
 		}
+	case *AssertExpr:
+		in.order(v.Test)
+		if v.Message != nil {
+			in.order(v.Message)
+		}
 	case *CommentBlock:
 		// nothing
 	case *CallExpr:
@@ -705,17 +710,14 @@ func (in *input) order(v Expr) {
 			in.order(x)
 		}
 		in.order(&v.End)
-	case *LoadStmt:
-		in.order(v.Module)
-		for i := range v.From {
-			in.order(v.To[i])
-			in.order(v.From[i])
-		}
-		in.order(&v.Rparen)
 	case *LiteralExpr:
 		// nothing
 	case *StringExpr:
 		// nothing
+	case *MultiPartStringExpr:
+		for _, x := range v.Strings {
+			in.order(x)
+		}
 	case *Ident:
 		// nothing
 	case *TypedIdent:

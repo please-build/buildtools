@@ -44,9 +44,8 @@ package build
 	kv        *KeyValueExpr
 	kvs       []*KeyValueExpr
 	string    *StringExpr
+	strings   []*StringExpr
 	ifstmt    *IfStmt
-	loadarg   *struct{from Ident; to Ident}
-	loadargs  []*struct{from Ident; to Ident}
 	def_header *DefStmt  // partially filled in def statement, without the body
 
 	// supporting information
@@ -92,6 +91,7 @@ package build
 
 %token	<pos>	_AUGM    // augmented assignment
 %token	<pos>	_AND     // keyword and
+%token	<pos>	_ASSERT  // keyword assert
 %token	<pos>	_COMMENT // top-level # comment
 %token	<pos>	_EOF     // end of file
 %token	<pos>	_EQ      // operator ==
@@ -105,7 +105,6 @@ package build
 %token	<pos>	_IN      // keyword in
 %token	<pos>	_IS      // keyword is
 %token	<pos>	_LAMBDA  // keyword lambda
-%token	<pos>	_LOAD    // keyword load
 %token	<pos>	_LE      // operator <=
 %token	<pos>	_NE      // operator !=
 %token	<pos>	_STAR_STAR // operator **
@@ -161,11 +160,10 @@ package build
 %type	<kv>		keyvalue
 %type	<kvs>		keyvalues
 %type	<kvs>		keyvalues_no_comma
+%type	<strings>	strings
 %type	<string>	string
 %type	<exprs>		suite
 %type	<exprs>		comments
-%type	<loadarg>	load_argument
-%type	<loadargs>	load_arguments
 %type <def_header>	def_header
 %type <def_header>	def_header_type_opt
 
@@ -180,7 +178,6 @@ package build
 %left	ShiftInstead
 
 %left	'\n'
-%left	_ASSERT
 // '=' and augmented assignments have the lowest precedence
 // e.g. "x = a if c > 0 else 'bar'"
 // followed by
@@ -471,6 +468,21 @@ small_stmt:
 			Return: $1,
 		}
 	}
+| 	_ASSERT test
+	{
+		$$ = &AssertExpr{
+			Assert: $1,
+			Test: $2,
+		}
+	}
+| 	_ASSERT test commas expr
+	{
+		$$ = &AssertExpr{
+			Assert: $1,
+			Test: $2,
+			Message: $4,
+		}
+	}
 |	expr '=' expr      { $$ = binary($1, $2, $<tok>2, $3) }
 |	expr _AUGM expr    { $$ = binary($1, $2, $<tok>2, $3) }
 |	_PASS
@@ -501,6 +513,10 @@ semi_opt:
 primary_expr:
 	ident
 |	number
+|	strings
+	{
+		$$ = &MultiPartStringExpr{Strings: $1}
+	}
 |	string
 	{
 		$$ = $1
@@ -513,20 +529,6 @@ primary_expr:
 			NamePos: $3,
 			Name: $<tok>3,
 		}
-	}
-|	_LOAD '(' commas_opt string commas load_arguments commas_opt ')'
-	{
-		load := &LoadStmt{
-			Load: $1,
-			Module: $4,
-			Rparen: End{Pos: $8},
-			ForceCompact: $2.Line == $8.Line,
-		}
-		for _, arg := range $6 {
-			load.From = append(load.From, &arg.from)
-			load.To = append(load.To, &arg.to)
-		}
-		$$ = load
 	}
 |	primary_expr '(' arguments_opt ')'
 	{
@@ -680,47 +682,6 @@ argument:
 		$$ = unary($1, $<tok>1, $2)
 	}
 
-load_arguments:
-	load_argument {
-		$$ = []*struct{from Ident; to Ident}{$1}
-	}
-| load_arguments ',' load_argument
-	{
-		$1 = append($1, $3)
-		$$ = $1
-	}
-
-load_argument:
-	string {
-		start := $1.Start.add("'")
-		if $1.TripleQuote {
-			start = start.add("''")
-		}
-		$$ = &struct{from Ident; to Ident}{
-			from: Ident{
-				Name: $1.Value,
-				NamePos: start,
-			},
-			to: Ident{
-				Name: $1.Value,
-				NamePos: start,
-			},
-		}
-	}
-| ident '=' string
-	{
-		start := $3.Start.add("'")
-		if $3.TripleQuote {
-			start = start.add("''")
-		}
-		$$ = &struct{from Ident; to Ident}{
-			from: Ident{
-				Name: $3.Value,
-				NamePos: start,
-			},
-			to: *$1.(*Ident),
-		}
-	}
 
 parameters_opt:
 	{
@@ -984,7 +945,6 @@ loop_vars:
 		tuple.List = append(tuple.List, $3)
 		$$ = tuple
 	}
-
 string:
 	_STRING
 	{
@@ -995,6 +955,15 @@ string:
 			End: $1.add($<tok>1),
 			Token: $<tok>1,
 		}
+	}
+strings:
+	string string
+	{
+		$$ = []*StringExpr{$1, $2}
+	}
+|	strings string
+	{
+		$$ = append($1, $2)
 	}
 
 ident:

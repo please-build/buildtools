@@ -273,6 +273,51 @@ func (x *StringExpr) Copy() Expr {
 	return &n
 }
 
+type MultiPartStringExpr struct {
+	Comments
+	Strings []*StringExpr
+}
+
+// Span returns the start and end positions of the node
+func (x *MultiPartStringExpr) Span() (Position, Position) {
+	start, _ := x.Strings[0].Span()
+	_, end := x.Strings[len(x.Strings)-1].Span()
+	return start, end
+}
+
+//Copy creates and returns a non-deep copy of StringExpr
+func (x *MultiPartStringExpr) Copy() Expr {
+	n := new(MultiPartStringExpr)
+	n.Strings = make([]*StringExpr, 0, len(x.Strings))
+	for _, str := range x.Strings {
+		n.Strings = append(n.Strings, str.Copy().(*StringExpr))
+	}
+	return n
+}
+
+type AssertExpr struct {
+	Comments
+	Assert  Position
+	Test    Expr
+	Message Expr
+}
+
+// Span returns the start and end positions of the node
+func (x *AssertExpr) Span() (start, end Position) {
+	if x.Message != nil {
+		_, end = x.Message.Span()
+	} else {
+		_, end = x.Test.Span()
+	}
+	return x.Assert, end
+}
+
+//Copy creates and returns a non-deep copy of End
+func (x *AssertExpr) Copy() Expr {
+	n := *x
+	return &n
+}
+
 // An End represents the end of a parenthesized or bracketed expression.
 // It is a place to hang comments.
 type End struct {
@@ -698,35 +743,6 @@ func (x *ConditionalExpr) Span() (start, end Position) {
 
 //Copy creates and returns a non-deep copy of ConditionalExpr
 func (x *ConditionalExpr) Copy() Expr {
-	n := *x
-	return &n
-}
-
-// A LoadStmt loads another module and binds names from it:
-// load(Module, "x", y="foo").
-//
-// The AST is slightly unfaithful to the concrete syntax here because
-// Skylark's load statement, so that it can be implemented in Python,
-// binds some names (like y above) with an identifier and some (like x)
-// without.  For consistency we create fake identifiers for all the
-// strings.
-type LoadStmt struct {
-	Comments
-	Load         Position
-	Module       *StringExpr
-	From         []*Ident // name defined in loading module
-	To           []*Ident // name in loaded module
-	Rparen       End
-	ForceCompact bool // force compact (non-multiline) form when printing
-}
-
-// Span returns the start and end positions of the node
-func (x *LoadStmt) Span() (start, end Position) {
-	return x.Load, x.Rparen.Pos.add(")")
-}
-
-//Copy creates and returns a non-deep copy of LoadStmt
-func (x *LoadStmt) Copy() Expr {
 	n := *x
 	return &n
 }

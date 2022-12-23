@@ -1,0 +1,13 @@
+foo = (
+    "foo"
+    "bar"
+    # test
+    "baz"
+)
+
+bar = [
+    "foo"
+    "bar"
+    # test
+    "baz",
+]

@@ -251,12 +251,6 @@ func (p *printer) statements(rawStmts []Expr) {
 func (p *printer) compactStmt(s1, s2 Expr) bool {
 	if len(s2.Comment().Before) > 0 || len(s1.Comment().After) > 0 {
 		return false
-	} else if isLoad(s1) && isLoad(s2) {
-		// Load statements should be compact
-		return true
-	} else if isLoad(s1) || isLoad(s2) {
-		// Load statements should be separated from anything else
-		return false
 	} else if p.fileType == TypeModule && isBazelDep(s1) && isBazelDep(s2) {
 		// bazel_dep statements in MODULE files should be compressed
 		return true
@@ -275,12 +269,6 @@ func (p *printer) compactStmt(s1, s2 Expr) bool {
 		start, _ := s2.Span()
 		return start.Line-end.Line <= 1
 	}
-}
-
-// isLoad reports whether x is a load statement.
-func isLoad(x Expr) bool {
-	_, ok := x.(*LoadStmt)
-	return ok
 }
 
 func isBazelDep(x Expr) bool {
@@ -456,6 +444,15 @@ func (p *printer) expr(v Expr, outerPrec int) {
 	case *BranchStmt:
 		p.printf("%s", v.Token)
 
+	case *AssertExpr:
+		p.printf("assert")
+		p.printf(" ")
+		p.expr(v.Test, outerPrec)
+		if v.Message != nil {
+			p.printf(", ")
+			p.expr(v.Message, outerPrec)
+		}
+
 	case *StringExpr:
 		// If the Token is a correct quoting of Value and has double quotes, use it,
 		// also use it if it has single quotes and the value itself contains a double quote symbol
@@ -503,6 +500,14 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		}
 
 		p.printf("%s", quote(v.Value, v.TripleQuote))
+
+	case *MultiPartStringExpr:
+		for i, str := range v.Strings {
+			p.expr(str, outerPrec)
+			if i < len(v.Strings)-1 {
+				p.breakline()
+			}
+		}
 
 	case *DotExpr:
 		addParen(precSuffix)
@@ -637,31 +642,6 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		addParen(precSuffix)
 		p.expr(v.X, precSuffix)
 		p.seq("()", &v.ListStart, &v.List, &v.End, modeCall, forceCompact, v.ForceMultiLine)
-
-	case *LoadStmt:
-		addParen(precSuffix)
-		p.printf("load")
-		args := []Expr{v.Module}
-		for i := range v.From {
-			from := v.From[i]
-			to := v.To[i]
-			var arg Expr
-			if from.Name == to.Name {
-				// Suffix comments are attached to the `to` token,
-				// Before comments are attached to the `from` token,
-				// they need to be combined.
-				arg = from.asString()
-				arg.Comment().Before = to.Comment().Before
-			} else {
-				arg = &AssignExpr{
-					LHS: to,
-					Op:  "=",
-					RHS: from.asString(),
-				}
-			}
-			args = append(args, arg)
-		}
-		p.seq("()", &v.Load, &args, &v.Rparen, modeLoad, v.ForceCompact, false)
 
 	case *ListExpr:
 		p.seq("[]", &v.Start, &v.List, &v.End, modeList, false, v.ForceMultiLine)

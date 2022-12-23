@@ -184,7 +184,7 @@ func noEffectStatementsCheck(body []build.Expr, isTopLevel, isFunc bool, finding
 			seenNonComment = true
 		}
 		switch s := (stmt).(type) {
-		case *build.DefStmt, *build.ForStmt, *build.IfStmt, *build.LoadStmt, *build.ReturnStmt,
+		case *build.DefStmt, *build.ForStmt, *build.IfStmt, *build.ReturnStmt,
 			*build.CallExpr, *build.CommentBlock, *build.BranchStmt, *build.AssignExpr:
 			continue
 		case *build.Comprehension:
@@ -451,13 +451,6 @@ func unusedVariableCheck(f *build.File, root build.Expr) (map[string]bool, []*Li
 				}
 			}
 
-		case *build.LoadStmt:
-			// LoadStmt nodes store the loaded symbols as idents, even though in the
-			// source code they are strings. These idents may confuse the check,
-			// they also shouldn't affect the warnings at all, unused loads are taken
-			// care of by another check. It's safe to just ignore them here.
-			return
-
 		default:
 			assigned, used := extractIdentsFromStmt(expr)
 
@@ -566,110 +559,6 @@ func redefinedVariableWarning(f *build.File) []*LinterFinding {
 			makeLinterFinding(as.LHS, fmt.Sprintf(`Variable %q has already been defined. 
 Redefining a global value is discouraged and will be forbidden in the future.
 Consider using a new variable instead.`, left.Name)))
-	}
-	return findings
-}
-
-func unusedLoadWarning(f *build.File) []*LinterFinding {
-	findings := []*LinterFinding{}
-	loaded := make(map[string]struct {
-		label, from string
-		line        int
-	})
-
-	symbols := edit.UsedSymbols(f)
-	types := edit.UsedTypes(f)
-	for stmtIndex := 0; stmtIndex < len(f.Stmt); stmtIndex++ {
-		originalLoad, ok := f.Stmt[stmtIndex].(*build.LoadStmt)
-		if !ok {
-			continue
-		}
-
-		// Findings related to the current load statement
-		loadFindings := []*LinterFinding{}
-
-		// Copy the `load` object to provide a replacement if needed
-		load := *originalLoad
-		load.From = append([]*build.Ident{}, load.From...)
-		load.To = append([]*build.Ident{}, load.To...)
-
-		for i := 0; i < len(load.To); i++ {
-			from := load.From[i]
-			to := load.To[i]
-			// Check if the symbol was already loaded
-			origin, alreadyLoaded := loaded[to.Name]
-			start, _ := from.Span()
-			loaded[to.Name] = struct {
-				label, from string
-				line        int
-			}{load.Module.Token, from.Name, start.Line}
-
-			if alreadyLoaded {
-				// The same symbol has already been loaded earlier
-				if origin.label == load.Module.Token && origin.from == from.Name {
-					// Only fix if it's loaded from the same label and variable
-					load.To = append(load.To[:i], load.To[i+1:]...)
-					load.From = append(load.From[:i], load.From[i+1:]...)
-					i--
-					loadFindings = append(loadFindings, makeLinterFinding(to,
-						fmt.Sprintf("Symbol %q has already been loaded on line %d. Please remove it.", to.Name, origin.line)))
-					continue
-				}
-
-				loadFindings = append(loadFindings, makeLinterFinding(to,
-					fmt.Sprintf("A different symbol %q has already been loaded on line %d. Please use a different local name.", to.Name, origin.line)))
-				continue
-			}
-			_, ok := symbols[to.Name]
-			if !ok {
-				// Fallback to verify if the symbol is used as a type.
-				_, ok = types[to.Name]
-			}
-			if !ok && !edit.ContainsComments(originalLoad, "@unused") && !edit.ContainsComments(to, "@unused") && !edit.ContainsComments(from, "@unused") {
-				// The loaded symbol is not used and is not protected by a special "@unused" comment
-				load.To = append(load.To[:i], load.To[i+1:]...)
-				load.From = append(load.From[:i], load.From[i+1:]...)
-				i--
-
-				loadFindings = append(loadFindings, makeLinterFinding(to,
-					fmt.Sprintf("Loaded symbol %q is unused. Please remove it.\nTo disable the warning, add '@unused' in a comment.", to.Name)))
-				if f.Type == build.TypeDefault || f.Type == build.TypeBzl {
-					loadFindings[len(loadFindings)-1].Message += fmt.Sprintf(`
-If you want to re-export a symbol, use the following pattern:
-
-    load(..., _%s = %q, ...)
-    %s = _%s
-`, to.Name, from.Name, to.Name, to.Name)
-				}
-			}
-		}
-
-		if len(loadFindings) == 0 {
-			// No problems with the current load statement
-			continue
-		}
-
-		build.SortLoadArgs(&load)
-		var newStmt build.Expr = &load
-		if len(load.To) == 0 {
-			// If there are no loaded symbols left remove the entire load statement
-			newStmt = nil
-		}
-		replacement := LinterReplacement{&f.Stmt[stmtIndex], newStmt}
-
-		// Individual replacements can't be combined together: assume we need to remove both loaded
-		// symbols from
-		//
-		//     load(":foo.bzl", "a", "b")
-		//
-		// Individual replacements are just to remove each of the symbols, but if these replacements
-		// are applied together, the result will be incorrect and a syntax error in Bazel:
-		//
-		//     load(":foo.bzl")
-		//
-		// A workaround is to attach the full replacement to the first finding.
-		loadFindings[0].Replacement = []LinterReplacement{replacement}
-		findings = append(findings, loadFindings...)
 	}
 	return findings
 }

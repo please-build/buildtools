@@ -119,10 +119,6 @@ func (e *Environment) declare(name string, kind ValueKind, node build.Expr) {
 func declareGlobals(stmts []build.Expr, env *Environment) {
 	for _, node := range stmts {
 		switch node := node.(type) {
-		case *build.LoadStmt:
-			for _, ident := range node.To {
-				env.declare(ident.Name, Imported, ident)
-			}
 		case *build.AssignExpr:
 			kind := Local
 			if env.Function == nil {

@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/labels"
 )
 
 // Internal constant that represents the native module
@@ -53,7 +52,7 @@ type funCall struct {
 func acceptsNameArgument(def *build.DefStmt) bool {
 	for _, param := range def.Params {
 		if name, op := build.GetParamName(param); name == "name" || op == "**" {
-  		return true
+			return true
 		}
 	}
 	return false
@@ -123,22 +122,6 @@ func analyzeFile(f *build.File) fileData {
 		return fileData{}
 	}
 
-	// Collect loaded symbols
-	externalSymbols := make(map[string]function)
-	for _, stmt := range f.Stmt {
-		load, ok := stmt.(*build.LoadStmt)
-		if !ok {
-			continue
-		}
-		label := labels.ParseRelative(load.Module.Value, f.Pkg)
-		if label.Repository != "" || label.Target == "" {
-			continue
-		}
-		for i, from := range load.From {
-			externalSymbols[load.To[i].Name] = function{label.Package, label.Target, from.Name}
-		}
-	}
-
 	report := fileData{
 		rules:     make(map[string]bool),
 		functions: make(map[string]map[string]funCall),
@@ -153,7 +136,7 @@ func analyzeFile(f *build.File) fileData {
 				continue
 			}
 			if rhsIdent, ok := stmt.RHS.(*build.Ident); ok {
-				report.aliases[lhsIdent.Name] = resolveExternal(function{f.Pkg, f.Label, rhsIdent.Name}, externalSymbols)
+				report.aliases[lhsIdent.Name] = resolveExternal(function{f.Pkg, f.Label, rhsIdent.Name}, nil)
 				continue
 			}
 
@@ -167,7 +150,7 @@ func analyzeFile(f *build.File) fileData {
 			}
 			report.rules[lhsIdent.Name] = true
 		case *build.DefStmt:
-			report.functions[stmt.Name] = getFunCalls(stmt, f.Pkg, f.Label, externalSymbols)
+			report.functions[stmt.Name] = getFunCalls(stmt, f.Pkg, f.Label, nil)
 		default:
 			continue
 		}
