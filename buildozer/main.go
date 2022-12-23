@@ -29,16 +29,25 @@ import (
 	"github.com/bazelbuild/buildtools/tables"
 )
 
+type flagArray []string
+
+func (i *flagArray) String() string { return strings.Join(*i, ",") }
+func (i *flagArray) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 var (
 	buildVersion     = "redacted"
 	buildScmRevision = "redacted"
+
+	commandsFiles flagArray
 
 	version           = flag.Bool("version", false, "Print the version of buildozer")
 	stdout            = flag.Bool("stdout", false, "write changed BUILD file to stdout")
 	buildifier        = flag.String("buildifier", "", "format output using a specific buildifier binary. If empty, use built-in formatter")
 	parallelism       = flag.Int("P", 0, "number of cores to use for concurrent actions")
 	numio             = flag.Int("numio", 200, "number of concurrent actions")
-	commandsFile      = flag.String("f", "", "file name to read commands from, use '-' for stdin (format:|-separated command line arguments to buildozer, excluding flags)")
 	keepGoing         = flag.Bool("k", false, "apply all commands, even if there are failures")
 	filterRuleTypes   = stringList("types", "comma-separated list of rule types to change, the default empty list means all rules")
 	preferEOLComments = flag.Bool("eol-comments", true, "when adding a new comment, put it on the same line if possible")
@@ -46,6 +55,7 @@ var (
 	quiet             = flag.Bool("quiet", false, "suppress informational messages")
 	editVariables     = flag.Bool("edit-variables", false, "For attributes that simply assign a variable (e.g. hdrs = LIB_HDRS), edit the build variable instead of appending to the attribute.")
 	isPrintingProto   = flag.Bool("output_proto", false, "output serialized devtools.buildozer.Output protos instead of human-readable strings.")
+	isPrintingJSON    = flag.Bool("output_json", false, "output serialized devtools.buildozer.Output json instead of human-readable strings.")
 	tablesPath        = flag.String("tables", "", "path to JSON file with custom table definitions which will replace the built-in tables")
 	addTablesPath     = flag.String("add_tables", "", "path to JSON file with custom table definitions which will be merged with the built-in tables")
 
@@ -68,6 +78,7 @@ func stringList(name, help string) func() []string {
 }
 
 func main() {
+	flag.Var(&commandsFiles, "f", "file name(s) to read commands from, use '-' for stdin (format:|-separated command line arguments to buildozer, excluding flags)")
 	flag.Parse()
 
 	if *version {
@@ -100,7 +111,7 @@ func main() {
 		Buildifier:        *buildifier,
 		Parallelism:       *parallelism,
 		NumIO:             *numio,
-		CommandsFile:      *commandsFile,
+		CommandsFiles:     commandsFiles,
 		KeepGoing:         *keepGoing,
 		FilterRuleTypes:   filterRuleTypes(),
 		PreferEOLComments: *preferEOLComments,
@@ -108,6 +119,7 @@ func main() {
 		Quiet:             *quiet,
 		EditVariables:     *editVariables,
 		IsPrintingProto:   *isPrintingProto,
+		IsPrintingJSON:    *isPrintingJSON,
 	}
 	os.Exit(edit.Buildozer(opts, flag.Args()))
 }

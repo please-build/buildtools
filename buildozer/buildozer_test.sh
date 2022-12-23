@@ -229,6 +229,18 @@ function test_remove_last_dep() {
   assert_equals 'go_library(name = "edit")'
 }
 
+function test_remove_all_attrs() {
+  run "$one_dep" 'remove *' '//pkg:edit'
+  assert_equals 'go_library(name = "edit")'
+}
+
+function test_remove_all_attrs_none() {
+  ERROR=3 run "$no_deps" 'remove *' '//pkg:edit'
+  assert_equals 'go_library(
+    name = "edit",
+)'
+}
+
 function test_remove_dep() {
   run "$two_deps" 'remove deps //buildifier:build' '//pkg:edit'
   assert_equals 'go_library(
@@ -1055,6 +1067,13 @@ java_library(name = "b")'
   assert_output '//pkg:b java_library'
 }
 
+function test_print_label_json() {
+  in='package()
+java_library(name = "b")'
+  run --output_json "$in" 'print label kind' '//pkg:*'
+  assert_output '{"records":[{"fields":[{"text":"//pkg:b"},{"text":"java_library"}]}]}'
+}
+
 function test_print_label_ellipsis() {
   mkdir -p "ellipsis_test/foo/bar"
   echo 'java_library(name = "test")' > "ellipsis_test/BUILD"
@@ -1231,6 +1250,26 @@ java_library(name = "foo")
 cc_test(name = "b")'
 }
 
+function test_new_after_package() {
+  in='
+load("/foo/bar", "x", "y", "z")
+package(default_visibility = "//visibility:public")
+
+cc_test(name = "a")
+
+cc_test(name = "b")'
+  run "$in" 'new java_library foo after __pkg__' 'pkg/BUILD'
+  assert_equals 'load("/foo/bar", "x", "y", "z")
+
+package(default_visibility = "//visibility:public")
+
+java_library(name = "foo")
+
+cc_test(name = "a")
+
+cc_test(name = "b")'
+}
+
 function test_not_enough_arguments() {
   ERROR=1 run "$one_dep" 'add foo' '//pkg:edit'
   assert_err "Too few arguments for command 'add', expected at least 2."
@@ -1387,6 +1426,14 @@ cc_library(name = "a")'
   assert_output 'Hello'
 }
 
+function test_rule_print_comment_with_suffix_and_after() {
+  in='# Hello Before
+cc_library(name = "a") # Hello Suffix
+# Hello After'
+  run "$in" 'print_comment' //pkg:a
+  assert_output 'Hello Before Hello Suffix Hello After'
+}
+
 function test_attribute_print_comment() {
   in='cc_library(
     name = "a",
@@ -1488,7 +1535,9 @@ EOF
 new cc_library baz|//a/pkg1:__pkg__
 add deps a|//a/pkg1:baz
 add deps a|a/pkg1:foo
-add deps x|a/pkg2:foo
+add deps x#|a/pkg2:foo
+# add deps y|a/pkg1:foo
+  # add deps y|a/pkg2:foo
 
 add deps y|a/pkg2:bar|add deps c|a/pkg1:foo
 add deps z|a/pkg2:bar
@@ -1524,7 +1573,7 @@ EOF
   cat > expected_pkg_2 <<EOF
 cc_library(
     name = "foo",
-    deps = ["x"],
+    deps = ["x#"],
 )
 
 cc_library(
@@ -1808,6 +1857,68 @@ function test_set_config_string() {
     config = "foo",
     deps = ["//buildifier:build"],
 )'
+}
+
+function test_fix_unused_load() {
+  run 'load(":a.bzl", "a")
+# TODO: refactor
+
+# begin loads
+
+load(":foo.bzl", "foo")  # foo
+load(":foobar.bzl", "foobar")  # this one is actually used
+load(":baz.bzl", "baz")  # this is @unused
+load(":bar.bzl", "bar")  # bar
+
+# end loads
+
+# before
+load(":qux.bzl", "qux")
+# after
+
+foobar()' 'fix unusedLoads' 'pkg/BUILD'
+  assert_equals '# TODO: refactor
+
+# begin loads
+
+load(":foobar.bzl", "foobar")  # this one is actually used
+load(":baz.bzl", "baz")  # this is @unused
+
+# end loads
+
+# before
+# after
+
+foobar()'
+}
+
+function test_commands_with_targets() {
+  mkdir -p pkg1
+  mkdir -p pkg2
+
+  cat > pkg1/BUILD <<EOF
+rule(name = "r1", deps = [":bar"], compatible_with=["//env:a"])
+EOF
+  cat > pkg2/BUILD <<EOF
+rule(name = "r2", compatible_with=["//env:a"])
+EOF
+
+  cat > commands <<EOF
+remove compatible_with //env:a|*
+add deps :baz|*
+EOF
+  $buildozer --buildifier= -f commands pkg1:* pkg2:*
+  assert_equals 'rule(
+    name = "r1",
+    deps = [
+        ":bar",
+        ":baz",
+    ],
+)' pkg1
+  assert_equals 'rule(
+    name = "r2",
+    deps = [":baz"],
+)' pkg2
 }
 
 run_suite "buildozer tests"

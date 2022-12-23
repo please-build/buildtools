@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "buildozer.go",
+        "default_buildifier.go",
         "edit.go",
         "fix.go",
         "types.go",
@@ -19,6 +20,7 @@ go_library(
         "//lang:go_default_library",
         "//tables:go_default_library",
         "//wspace:go_default_library",
+        "@com_github_golang_protobuf//jsonpb:go_default_library",
         "@com_github_golang_protobuf//proto:go_default_library",
     ],
 )

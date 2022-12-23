@@ -20,15 +20,39 @@ import "testing"
 
 func TestIntegerDivision(t *testing.T) {
 	checkFindingsAndFix(t, "integer-division", `
-a = b / c
-d /= e
+a = 1
+b = int(2.3)
+c = 1.0
+d = float(2)
+
+e = a / b
+f = a / c
+g = c / a
+h = c / d
+
+a /= b
+a /= c
+c /= a
+c /= d
 `, `
-a = b // c
-d //= e
+a = 1
+b = int(2.3)
+c = 1.0
+d = float(2)
+
+e = a // b
+f = a / c
+g = c / a
+h = c / d
+
+a //= b
+a /= c
+c /= a
+c /= d
 `,
 		[]string{
-			":1: The \"/\" operator for integer division is deprecated in favor of \"//\".",
-			":2: The \"/=\" operator for integer division is deprecated in favor of \"//=\".",
+			":6: The \"/\" operator for integer division is deprecated in favor of \"//\".",
+			":11: The \"/=\" operator for integer division is deprecated in favor of \"//=\".",
 		},
 		scopeEverywhere)
 }

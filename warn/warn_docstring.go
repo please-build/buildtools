@@ -103,7 +103,7 @@ func countLeadingSpaces(s string) int {
 	return spaces
 }
 
-var argRegex = regexp.MustCompile(`^ *(\*?\*?\w*)( *\([\w\ ,]+\))?:`)
+var argRegex = regexp.MustCompile(`^ *(\*?\*?\w*)( *\([\w\ ,<>\[\]]+\))?:`)
 
 // parseFunctionDocstring parses a function docstring and returns a docstringInfo object containing
 // the parsed information about the function, its arguments and its return value.
@@ -188,34 +188,19 @@ func parseFunctionDocstring(doc *build.StringExpr) docstringInfo {
 	return info
 }
 
-func getParamName(param build.Expr) string {
-	switch param := param.(type) {
-	case *build.Ident:
-		return param.Name
-	case *build.AssignExpr:
-		// keyword parameter
-		if ident, ok := param.LHS.(*build.Ident); ok {
-			return ident.Name
-		}
-	case *build.UnaryExpr:
-		// *args, **kwargs, or *
-		if ident, ok := param.X.(*build.Ident); ok {
-			return param.Op + ident.Name
-		} else if param.X == nil {
-			// An asterisk separating position and keyword-only arguments
-			return "*"
-		}
-	}
-	return ""
-}
-
 func hasReturnValues(def *build.DefStmt) bool {
 	result := false
-	build.Walk(def, func(expr build.Expr, stack []build.Expr) {
+	build.WalkStatements(def, func(expr build.Expr, stack []build.Expr) (err error) {
+		if _, ok := expr.(*build.DefStmt); ok && len(stack) > 0 {
+			// Don't go into inner function definitions
+			return &build.StopTraversalError{}
+		}
+
 		ret, ok := expr.(*build.ReturnStmt)
 		if ok && ret.Result != nil {
 			result = true
 		}
+		return
 	})
 	return result
 }
@@ -223,12 +208,17 @@ func hasReturnValues(def *build.DefStmt) bool {
 // isDocstringRequired returns whether a function is required to has a docstring.
 // A docstring is required for public functions if they are long enough (at least 5 statements)
 func isDocstringRequired(def *build.DefStmt) bool {
+	if start, _ := def.Span(); start.LineRune > 1 {
+		// Nested functions don't require docstrings
+		return false
+	}
 	return !strings.HasPrefix(def.Name, "_") && stmtsCount(def.Body) >= FunctionLengthDocstringThreshold
 }
 
 func functionDocstringWarning(f *build.File) []*LinterFinding {
 	var findings []*LinterFinding
 
+	// Docstrings are required only for top-level functions
 	for _, stmt := range f.Stmt {
 		def, ok := stmt.(*build.DefStmt)
 		if !ok {
@@ -255,15 +245,15 @@ A docstring is a string literal (not a comment) which should be the first statem
 func functionDocstringHeaderWarning(f *build.File) []*LinterFinding {
 	var findings []*LinterFinding
 
-	for _, stmt := range f.Stmt {
-		def, ok := stmt.(*build.DefStmt)
+	build.WalkStatements(f, func(expr build.Expr, stack []build.Expr) (err error) {
+		def, ok := expr.(*build.DefStmt)
 		if !ok {
-			continue
+			return
 		}
 
 		doc, ok := getDocstring(def.Body)
 		if !ok {
-			continue
+			return
 		}
 
 		info := parseFunctionDocstring((*doc).(*build.StringExpr))
@@ -272,22 +262,23 @@ func functionDocstringHeaderWarning(f *build.File) []*LinterFinding {
 			message := fmt.Sprintf("The docstring for the function %q should start with a one-line summary.", def.Name)
 			findings = append(findings, makeLinterFinding(*doc, message))
 		}
-	}
+		return
+	})
 	return findings
 }
 
 func functionDocstringArgsWarning(f *build.File) []*LinterFinding {
 	var findings []*LinterFinding
 
-	for _, stmt := range f.Stmt {
-		def, ok := stmt.(*build.DefStmt)
+	build.WalkStatements(f, func(expr build.Expr, stack []build.Expr) (err error) {
+		def, ok := expr.(*build.DefStmt)
 		if !ok {
-			continue
+			return
 		}
 
 		doc, ok := getDocstring(def.Body)
 		if !ok {
-			continue
+			return
 		}
 
 		info := parseFunctionDocstring((*doc).(*build.StringExpr))
@@ -303,7 +294,7 @@ func functionDocstringArgsWarning(f *build.File) []*LinterFinding {
 		}
 
 		if !isDocstringRequired(def) && len(info.args) == 0 {
-			continue
+			return
 		}
 
 		// If a docstring is required or there are any arguments described, check for their integrity.
@@ -312,11 +303,11 @@ func functionDocstringArgsWarning(f *build.File) []*LinterFinding {
 		notDocumentedArguments := []string{}
 		paramNames := make(map[string]bool)
 		for _, param := range def.Params {
-			name := getParamName(param)
-			if name == "*" {
-				// Not really a parameter but a separator
+			name, op := build.GetParamName(param)
+			if name == "" {
 				continue
 			}
+			name = op + name  // *args or **kwargs
 			paramNames[name] = true
 			if _, ok := info.args[name]; !ok {
 				notDocumentedArguments = append(notDocumentedArguments, name)
@@ -377,22 +368,23 @@ one (preferably two) space more than "Args:", for example:
 			finding.End = posEnd
 			findings = append(findings, finding)
 		}
-	}
+		return
+	})
 	return findings
 }
 
 func functionDocstringReturnWarning(f *build.File) []*LinterFinding {
 	var findings []*LinterFinding
 
-	for _, stmt := range f.Stmt {
-		def, ok := stmt.(*build.DefStmt)
+	build.WalkStatements(f, func(expr build.Expr, stack []build.Expr) (err error) {
+		def, ok := expr.(*build.DefStmt)
 		if !ok {
-			continue
+			return
 		}
 
 		doc, ok := getDocstring(def.Body)
 		if !ok {
-			continue
+			return
 		}
 
 		info := parseFunctionDocstring((*doc).(*build.StringExpr))
@@ -402,6 +394,7 @@ func functionDocstringReturnWarning(f *build.File) []*LinterFinding {
 			message := fmt.Sprintf("Return value of %q is not documented.", def.Name)
 			findings = append(findings, makeLinterFinding(*doc, message))
 		}
-	}
+		return
+	})
 	return findings
 }

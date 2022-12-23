@@ -37,8 +37,8 @@ func isStarlarkFile(name string) bool {
 
 	switch ext {
 	case ".bazel", ".oss":
-		// BUILD.bazel or BUILD.foo.bazel should be treated as Starlark files, same for WORSKSPACE
-		return strings.HasPrefix(name, "BUILD.") || strings.HasPrefix(name, "WORKSPACE.")
+		// BUILD.bazel or BUILD.foo.bazel should be treated as Starlark files, same for WORSKSPACE and MODULE
+		return strings.HasPrefix(name, "BUILD.") || strings.HasPrefix(name, "WORKSPACE.") || strings.HasPrefix(name, "MODULE.")
 	}
 
 	return name == "BUILD" || name == "WORKSPACE"
@@ -62,13 +62,16 @@ func ExpandDirectories(args *[]string) ([]string, error) {
 			continue
 		}
 		err = filepath.Walk(arg, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 			if skip(info) {
 				return filepath.SkipDir
 			}
 			if !info.IsDir() && isStarlarkFile(info.Name()) {
 				files = append(files, path)
 			}
-			return err
+			return nil
 		})
 		if err != nil {
 			return []string{}, err
@@ -88,6 +91,8 @@ func GetParser(inputType string) func(filename string, data []byte) (*build.File
 		return build.Parse
 	case "workspace":
 		return build.ParseWorkspace
+	case "module":
+		return build.ParseModule
 	default:
 		return build.ParseDefault
 	}
