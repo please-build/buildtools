@@ -53,18 +53,6 @@ func convStmt(stmt syntax.Stmt) build.Expr {
 			Token:    stmt.Token.String(),
 			Comments: convComments(stmt.Comments()),
 		}
-	case *syntax.LoadStmt:
-		load := &build.LoadStmt{
-			Module:       convExpr(stmt.Module).(*build.StringExpr),
-			ForceCompact: singleLine(stmt),
-		}
-		for _, ident := range stmt.From {
-			load.From = append(load.From, convExpr(ident).(*build.Ident))
-		}
-		for _, ident := range stmt.To {
-			load.To = append(load.To, convExpr(ident).(*build.Ident))
-		}
-		return load
 	case *syntax.AssignStmt:
 		return &build.AssignExpr{
 			Op:       stmt.Op.String(),
