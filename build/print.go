@@ -330,7 +330,9 @@ func isDifferentLines(p1, p2 *Position) bool {
 // binds tighter than a smaller number. All binary operators bind
 // left-to-right.
 const (
-	precLow = iota
+	precType = iota
+	precDefault
+	precLow
 	precAssign
 	precColon
 	precIfElse
@@ -438,8 +440,8 @@ func (p *printer) expr(v Expr, outerPrec int) {
 
 	case *TypedIdent:
 		p.expr(v.Ident, precLow)
-		p.printf(": ")
-		p.expr(v.Type, precLow)
+		p.printf(":")
+		p.expr(v.Type, precType)
 
 	case *BranchStmt:
 		p.printf("%s", v.Token)
@@ -596,6 +598,11 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		// so that the second operand lines up with the first one and
 		// also so that neither operand can use space to the left.
 		// If the operator is an =, indent the right side another 4 spaces.
+		sep := " "
+		if outerPrec == precType {
+			sep = ""
+		}
+
 		prec := opPrec[v.Op]
 		addParen(prec)
 		m := p.margin
@@ -603,17 +610,30 @@ func (p *printer) expr(v Expr, outerPrec int) {
 			p.margin = p.indent()
 		}
 
-		p.expr(v.X, prec)
-		p.printf(" %s", v.Op)
+		if outerPrec == precType {
+			p.expr(v.X, outerPrec)
+		} else {
+			p.expr(v.X, prec)
+		}
+		p.printf("%s%s", sep, v.Op)
 		if v.LineBreak {
 			p.breakline()
 		} else {
-			p.printf(" ")
+			p.printf(sep)
 		}
-		p.expr(v.Y, prec+1)
+		if outerPrec == precType {
+			p.expr(v.Y, outerPrec)
+		} else {
+			p.expr(v.Y, prec+1)
+		}
 		p.margin = m
 
 	case *AssignExpr:
+		sep := " "
+		if outerPrec == precDefault {
+			sep = ""
+		}
+
 		addParen(precAssign)
 		m := p.margin
 		if v.LineBreak {
@@ -621,11 +641,11 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		}
 
 		p.expr(v.LHS, precAssign)
-		p.printf(" %s", v.Op)
+		p.printf("%s%s", sep, v.Op)
 		if v.LineBreak {
 			p.breakline()
 		} else {
-			p.printf(" ")
+			p.printf(sep)
 		}
 		p.expr(v.RHS, precAssign+1)
 		p.margin = m
@@ -880,7 +900,11 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 			if i > 0 {
 				p.printf(", ")
 			}
-			p.expr(x, precLow)
+			if mode == modeDef {
+				p.expr(x, precDefault)
+			} else {
+				p.expr(x, precLow)
+			}
 		}
 		// Single-element tuple must end with comma, to mark it as a tuple.
 		if len(*args) == 1 && mode == modeTuple {
@@ -908,7 +932,11 @@ func (p *printer) seq(brack string, start *Position, list *[]Expr, end *End, mod
 		}
 
 		p.newline()
-		p.expr(x, precLow)
+		if mode == modeDef {
+			p.expr(x, precDefault)
+		} else {
+			p.expr(x, precLow)
+		}
 
 		if i+1 < len(*args) || needsTrailingComma(mode, x) {
 			p.printf(",")
