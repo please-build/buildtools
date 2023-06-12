@@ -331,6 +331,7 @@ func isDifferentLines(p1, p2 *Position) bool {
 // left-to-right.
 const (
 	precType = iota
+	precAlias
 	precDefault
 	precLow
 	precAssign
@@ -442,6 +443,10 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		p.expr(v.Ident, precLow)
 		p.printf(":")
 		p.expr(v.Type, precType)
+		if v.Aliases != nil {
+			p.printf("&")
+			p.expr(v.Aliases, precAlias)
+		}
 
 	case *BranchStmt:
 		p.printf("%s", v.Token)
@@ -599,7 +604,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		// also so that neither operand can use space to the left.
 		// If the operator is an =, indent the right side another 4 spaces.
 		sep := " "
-		if outerPrec == precType {
+		if outerPrec == precType || outerPrec == precAlias {
 			sep = ""
 		}
 
@@ -610,7 +615,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 			p.margin = p.indent()
 		}
 
-		if outerPrec == precType {
+		if outerPrec == precType || outerPrec == precAlias {
 			p.expr(v.X, outerPrec)
 		} else {
 			p.expr(v.X, prec)
@@ -621,7 +626,7 @@ func (p *printer) expr(v Expr, outerPrec int) {
 		} else {
 			p.printf(sep)
 		}
-		if outerPrec == precType {
+		if outerPrec == precType || outerPrec == precAlias {
 			p.expr(v.Y, outerPrec)
 		} else {
 			p.expr(v.Y, prec+1)

@@ -711,7 +711,7 @@ parameters:
 		$$ = append($1, $3)
 	}
 
-// Parameters with optional type annotations
+// Parameters with optional type annotations and aliases
 parameters_type:
 	parameter_type
 	{
@@ -741,25 +741,34 @@ parameter:
 		$$ = unary($1, $<tok>1, $2)
 	}
 
-// Parameter with optional type annotation
+// Parameter with optional type annotation and aliases
 parameter_type:
 	parameter
 |
 	ident ':' test
 	{
-		$$ = typed($1, $3)
+		$$ = typed($1, $3, nil)
+	}
+|
+	ident ':' test '&' test
+	{
+		$$ = typed($1, $3, $5)
 	}
 |	ident ':' test '=' test
 	{
-		$$ = binary(typed($1, $3), $4, $<tok>4, $5)
+		$$ = binary(typed($1, $3, nil), $4, $<tok>4, $5)
+	}
+|	ident ':' test '&' test '=' test
+	{
+		$$ = binary(typed($1, $3, $5), $6, $<tok>6, $7)
 	}
 |	'*' ident ':' test
 	{
-		$$ = unary($1, $<tok>1, typed($2, $4))
+		$$ = unary($1, $<tok>1, typed($2, $4, nil))
 	}
 |	_STAR_STAR ident ':' test
 	{
-		$$ = unary($1, $<tok>1, typed($2, $4))
+		$$ = unary($1, $<tok>1, typed($2, $4, nil))
 	}
 
 expr:
@@ -1065,10 +1074,11 @@ func binary(x Expr, pos Position, op string, y Expr) Expr {
 }
 
 // typed returns a TypedIdent expression
-func typed(x, y Expr) *TypedIdent {
+func typed(x, y, z Expr) *TypedIdent {
 	return &TypedIdent{
-		Ident: x.(*Ident),
-		Type:  y,
+		Ident:   x.(*Ident),
+		Type:    y,
+		Aliases: z,
 	}
 }
 

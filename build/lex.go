@@ -722,6 +722,9 @@ func (in *input) order(v Expr) {
 		// nothing
 	case *TypedIdent:
 		in.order(v.Type)
+		if v.Aliases != nil {
+			in.order(v.Aliases)
+		}
 	case *BranchStmt:
 		// nothing
 	case *DotExpr:

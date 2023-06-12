@@ -192,16 +192,22 @@ func (x *Ident) asString() *StringExpr {
 }
 
 // An TypedIdent represents an identifier with type annotation: "foo: int".
+// It may also have additional identifiers that serve as aliases.
 type TypedIdent struct {
 	Comments
-	Ident *Ident
-	Type  Expr
+	Ident   *Ident
+	Type    Expr
+	Aliases Expr
 }
 
 // Span returns the start and end positions of the node
 func (x *TypedIdent) Span() (start, end Position) {
 	start, _ = x.Ident.Span()
-	_, end = x.Type.Span()
+	if x.Aliases != nil {
+		_, end = x.Aliases.Span()
+	} else {
+		_, end = x.Type.Span()
+	}
 	return start, end
 }
 
