@@ -356,6 +356,8 @@ var opPrec = map[string]int{
 	"and":    precAnd,
 	"in":     precCmp,
 	"not in": precCmp,
+	"is":     precCmp,
+	"is not": precCmp,
 	"<":      precCmp,
 	">":      precCmp,
 	"==":     precCmp,
