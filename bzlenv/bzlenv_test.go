@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 func TestWalkEnvironment(t *testing.T) {

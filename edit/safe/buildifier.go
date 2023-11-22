@@ -3,13 +3,13 @@
 // There are some programming frameworks which consider os.exec dangerous.
 //
 // The package is imported just for its side-effects. For example:
-// 
-// import _ "github.com/bazelbuild/buildtools/edit/safe/buildifier"
+//
+// import _ "github.com/please-build/buildtools/edit/safe/buildifier"
 package buildifier
 
 import (
-  "github.com/bazelbuild/buildtools/build"
-  "github.com/bazelbuild/buildtools/edit"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/edit"
 )
 
 func init() {

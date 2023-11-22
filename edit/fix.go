@@ -23,18 +23,19 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/labels"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/labels"
 )
 
 // splitOptionsWithSpaces is a cleanup function.
 // It splits options strings that contain a space. This change
 // should be safe as Blaze is splitting those strings, but we will
 // eventually get rid of this misfeature.
-//   eg. it converts from:
-//     copts = ["-Dfoo -Dbar"]
-//   to:
-//     copts = ["-Dfoo", "-Dbar"]
+//
+//	eg. it converts from:
+//	  copts = ["-Dfoo -Dbar"]
+//	to:
+//	  copts = ["-Dfoo", "-Dbar"]
 func splitOptionsWithSpaces(_ *build.File, r *build.Rule, _ string) bool {
 	var attrToRewrite = []string{
 		"copts",
@@ -308,7 +309,8 @@ func mergeLiteralLists(_ *build.File, r *build.Rule, _ string) bool {
 
 // usePlusEqual replaces uses of extend and append with the += operator.
 // e.g. foo.extend(bar)  =>  foo += bar
-//      foo.append(bar)  =>  foo += [bar]
+//
+//	foo.append(bar)  =>  foo += [bar]
 func usePlusEqual(f *build.File) bool {
 	fixed := false
 	for i, stmt := range f.Stmt {

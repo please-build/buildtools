@@ -1,0 +1,28 @@
+go_library(
+    name = "build",
+    srcs = [
+        "lex.go",
+        "parse.y.go",
+        "print.go",
+        "quote.go",
+        "rewrite.go",
+        "rule.go",
+        "syntax.go",
+        "utils.go",
+        "walk.go",
+    ],
+    visibility = [
+        "//buildifier:all",
+        "//buildifier/utils:all",
+        "//buildifier2:all",
+        "//buildozer:all",
+        "//bzlenv:all",
+        "//convertast:all",
+        "//edit:all",
+        "//edit/safe:all",
+        "//unused_deps:all",
+        "//warn:all",
+        "//wspace:all",
+    ],
+    deps = ["//tables"],
+)

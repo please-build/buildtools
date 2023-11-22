@@ -24,9 +24,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/edit"
-	"github.com/bazelbuild/buildtools/tables"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/edit"
+	"github.com/please-build/buildtools/tables"
 )
 
 type flagArray []string

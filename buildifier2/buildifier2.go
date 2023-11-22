@@ -33,8 +33,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/convertast"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/convertast"
 	"go.starlark.net/syntax"
 )
 

@@ -19,7 +19,7 @@ limitations under the License.
 package warn
 
 import (
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 func dictionaryConcatenationWarning(f *build.File) []*LinterFinding {

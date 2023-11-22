@@ -8,7 +8,7 @@ Build the tool:
 * Checkout the repo and then either via `go install` or `bazel build //buildifier`
 * If you already have 'go' installed, then build a binary via:
 
-`go install github.com/bazelbuild/buildtools/buildifier@latest`
+`go install github.com/please-build/buildtools/buildifier@latest`
 
 ## Usage
 
@@ -137,7 +137,7 @@ http_archive(
     sha256 = "ae34c344514e08c23e90da0e2d6cb700fcd28e80c02e23e4d5715dddcb42f7b3",
     strip_prefix = "buildtools-4.2.2",
     urls = [
-        "https://github.com/bazelbuild/buildtools/archive/refs/tags/4.2.2.tar.gz",
+        "https://github.com/please-build/buildtools/archive/refs/tags/4.2.2.tar.gz",
     ],
 )
 ```
@@ -184,7 +184,7 @@ The output format is the following:
                     "category": "integer-division",
                     "actionable": true,
                     "message": "The \"/\" operator for integer division is deprecated in favor of \"//\".",
-                    "url": "https://github.com/bazelbuild/buildtools/blob/master/WARNINGS.md#integer-division"
+                    "url": "https://github.com/please-build/buildtools/blob/master/WARNINGS.md#integer-division"
                 }
             ]
         },

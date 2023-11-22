@@ -26,9 +26,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/labels"
-	"github.com/bazelbuild/buildtools/wspace"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/labels"
+	"github.com/please-build/buildtools/wspace"
 )
 
 var (
@@ -167,7 +167,9 @@ func PackageDeclaration(f *build.File) *build.Rule {
 }
 
 // RemoveEmptyPackage removes empty package declarations from the file, i.e.:
-//    package()
+//
+//	package()
+//
 // This might appear because of a buildozer transformation (e.g. when removing a package
 // attribute). Removing it is required for the file to be valid.
 func RemoveEmptyPackage(f *build.File) *build.File {

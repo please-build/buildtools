@@ -31,13 +31,13 @@ import (
 	"path"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/config"
-	depspb "github.com/bazelbuild/buildtools/deps_proto"
-	"github.com/bazelbuild/buildtools/edit"
-	eapb "github.com/bazelbuild/buildtools/extra_actions_base_proto"
-	"github.com/bazelbuild/buildtools/labels"
 	"github.com/golang/protobuf/proto"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/config"
+	depspb "github.com/please-build/buildtools/deps_proto"
+	"github.com/please-build/buildtools/edit"
+	eapb "github.com/please-build/buildtools/extra_actions_base_proto"
+	"github.com/please-build/buildtools/labels"
 )
 
 var (

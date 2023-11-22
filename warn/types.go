@@ -19,8 +19,8 @@ package warn
 import (
 	"regexp"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/bzlenv"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/bzlenv"
 )
 
 // Type describes an expression type in Starlark.
@@ -196,9 +196,9 @@ func detectTypes(f *build.File) map[build.Expr]Type {
 // named parameters of functions. E.g. for `foo(x, y = z)` it visits `foo`, `x`, and `z`.
 // In the following example `x` in the last line shouldn't be recognised as int, but 'y' should:
 //
-//    x = 3
-//    y = 5
-//    foo(x = y)
+//	x = 3
+//	y = 5
+//	foo(x = y)
 func walkOnce(node build.Expr, env *bzlenv.Environment, fct func(e *build.Expr, env *bzlenv.Environment)) {
 	switch expr := node.(type) {
 	case *build.CallExpr:

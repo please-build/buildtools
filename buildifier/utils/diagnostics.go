@@ -19,8 +19,8 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/warn"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/warn"
 	"strings"
 )
 
