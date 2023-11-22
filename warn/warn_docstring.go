@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 // FunctionLengthDocstringThreshold is a limit for a function size (in statements), above which
@@ -307,7 +307,7 @@ func functionDocstringArgsWarning(f *build.File) []*LinterFinding {
 			if name == "" {
 				continue
 			}
-			name = op + name  // *args or **kwargs
+			name = op + name // *args or **kwargs
 			paramNames[name] = true
 			if _, ok := info.args[name]; !ok {
 				notDocumentedArguments = append(notDocumentedArguments, name)

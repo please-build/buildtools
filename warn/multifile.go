@@ -17,7 +17,7 @@ limitations under the License.
 package warn
 
 import (
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 // FileReader is a class that can read an arbitrary Starlark file

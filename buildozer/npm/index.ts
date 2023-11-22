@@ -9,24 +9,24 @@ const {getNativeBinary} = require('./buildozer');
 /**
  * Models the data structure of a buildozer command file.
  * You should group as many commands as possible into one call to `run` for efficiency.
- * https://github.com/bazelbuild/buildtools/tree/master/buildozer#do-multiple-changes-at-once
+ * https://github.com/please-build/buildtools/tree/master/buildozer#do-multiple-changes-at-once
  */
 export interface CommandBatch {
     /**
      * Each entry is a buildozer edit command like 'new cc_library foo' or a print command
-     * @see https://github.com/bazelbuild/buildtools/tree/master/buildozer#edit-commands
+     * @see https://github.com/please-build/buildtools/tree/master/buildozer#edit-commands
      */
     commands: string[];
     /**
      * Each entry is like a Bazel label
-     * @see https://github.com/bazelbuild/buildtools/tree/master/buildozer#targets
+     * @see https://github.com/please-build/buildtools/tree/master/buildozer#targets
      */
     targets: string[];
 };
 
 /**
  * run buildozer with a list of commands
- * @see https://github.com/bazelbuild/buildtools/tree/master/buildozer#do-multiple-changes-at-once
+ * @see https://github.com/please-build/buildtools/tree/master/buildozer#do-multiple-changes-at-once
  * @returns The standard out of the buildozer command, split by lines
  */
 export function run(...commands: CommandBatch[]): string[] {
@@ -40,7 +40,7 @@ export function run(...commands: CommandBatch[]): string[] {
  * @param flags any buildozer flags to pass
  */
 export function runWithOptions(commands: CommandBatch[], options: {cwd?: string}, flags: string[] = []): string[] {
-    // From https://github.com/bazelbuild/buildtools/tree/master/buildozer#usage:
+    // From https://github.com/please-build/buildtools/tree/master/buildozer#usage:
     // Here, label-list is a space-separated list of Bazel labels,
     // for example //path/to/pkg1:rule1 //path/to/pkg2:rule2.
     // Buildozer reads commands from FILE (- for stdin 
@@ -53,7 +53,7 @@ export function runWithOptions(commands: CommandBatch[], options: {cwd?: string}
         input,
         encoding: 'utf-8',
     });
-    // https://github.com/bazelbuild/buildtools/tree/master/buildozer#error-code
+    // https://github.com/please-build/buildtools/tree/master/buildozer#error-code
     if (status == 0 || status == 3) return stdout.trim().split('\n').filter(l => !!l);
 
     console.error(`buildozer exited with status ${status}\n${stderr}`);

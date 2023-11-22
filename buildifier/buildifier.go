@@ -27,12 +27,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/buildifier/utils"
-	"github.com/bazelbuild/buildtools/differ"
-	"github.com/bazelbuild/buildtools/tables"
-	"github.com/bazelbuild/buildtools/warn"
-	"github.com/bazelbuild/buildtools/wspace"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/buildifier/utils"
+	"github.com/please-build/buildtools/differ"
+	"github.com/please-build/buildtools/tables"
+	"github.com/please-build/buildtools/warn"
+	"github.com/please-build/buildtools/wspace"
 )
 
 var buildVersion = "redacted"

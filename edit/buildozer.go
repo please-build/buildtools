@@ -33,13 +33,13 @@ import (
 	"strconv"
 	"strings"
 
-	apipb "github.com/bazelbuild/buildtools/api_proto"
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/file"
-	"github.com/bazelbuild/buildtools/labels"
-	"github.com/bazelbuild/buildtools/wspace"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
+	apipb "github.com/please-build/buildtools/api_proto"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/file"
+	"github.com/please-build/buildtools/labels"
+	"github.com/please-build/buildtools/wspace"
 )
 
 // Options represents choices about how buildozer should behave.
@@ -798,10 +798,10 @@ func SplitOnSpaces(input string) []string {
 // parseCommands parses commands and targets they should be applied on from
 // a list of arguments.
 // Each argument can be either:
-// - a command (as defined by AllCommands) and its parameters, separated by
-//   whitespace
-// - a target all commands that are parsed during one call to parseCommands
-//   should be applied on
+//   - a command (as defined by AllCommands) and its parameters, separated by
+//     whitespace
+//   - a target all commands that are parsed during one call to parseCommands
+//     should be applied on
 func parseCommands(opts *Options, args []string) (commands []command, targets []string, err error) {
 	for _, arg := range args {
 		commandTokens := SplitOnSpaces(arg)
@@ -849,7 +849,9 @@ type rewriteResult struct {
 
 // getGlobalVariables returns the global variable assignments in the provided list of expressions.
 // That is, for each variable assignment of the form
-//   a = v
+//
+//	a = v
+//
 // vars["a"] will contain the AssignExpr whose RHS value is the assignment "a = v".
 func getGlobalVariables(exprs []build.Expr) (vars map[string]*build.AssignExpr) {
 	vars = make(map[string]*build.AssignExpr)

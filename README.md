@@ -1,6 +1,7 @@
-# Buildtools for bazel
+# Buildtools for ~bazel~ please
 
-This repository contains developer tools for working with Google's `bazel` buildtool.
+This repository contains developer tools for working with Google's `bazel` buildtool, forked to support the Please build
+system. 
 
 * [buildifier](buildifier/README.md) For formatting BUILD, BUILD.bazel and BUCK files in a standard way
 * [buildozer](buildozer/README.md) For doing command-line operations on these files.

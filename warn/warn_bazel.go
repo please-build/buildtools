@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 var functionsWithPositionalArguments = map[string]bool{

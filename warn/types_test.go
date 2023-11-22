@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bazelbuild/buildtools/build"
-	"github.com/bazelbuild/buildtools/testutils"
+	"github.com/please-build/buildtools/build"
+	"github.com/please-build/buildtools/testutils"
 )
 
 func checkTypes(t *testing.T, input, output string) {

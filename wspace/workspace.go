@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bazelbuild/buildtools/build"
+	"github.com/please-build/buildtools/build"
 )
 
 const workspaceFile = "WORKSPACE"
@@ -92,7 +92,8 @@ func find(dir string, rootFiles map[string]func(os.FileInfo) bool) (string, erro
 
 // FindRepoBuildFiles parses the WORKSPACE to find BUILD files for non-Bazel
 // external repositories, specifically those defined by one of these rules:
-//   new_local_repository(), new_git_repository(), new_http_archive()
+//
+//	new_local_repository(), new_git_repository(), new_http_archive()
 func FindRepoBuildFiles(root string) (map[string]string, error) {
 	ws := filepath.Join(root, workspaceFile)
 	kinds := []string{
