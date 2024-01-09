@@ -169,19 +169,20 @@ var NamePriority = map[string]int{
 	"gwt_name":          -98,
 	"package_name":      -97,
 	"visible_node_name": -96, // for boq_initial_css_modules and boq_jswire_test_suite
-	"size":              -95,
-	"timeout":           -94,
-	"testonly":          -93,
-	"src":               -92,
-	"srcdir":            -91,
-	"srcs":              -90,
-	"out":               -89,
-	"outs":              -88,
-	"hdrs":              -87,
-	"has_services":      -86, // before api versions, for proto
-	"include":           -85, // before exclude, for glob
-	"of":                -84, // for check_dependencies
-	"baseline":          -83, // for searchbox_library
+	"tag":               -95,
+	"size":              -94,
+	"timeout":           -93,
+	"testonly":          -92,
+	"src":               -91,
+	"srcdir":            -90,
+	"srcs":              -89,
+	"out":               -88,
+	"outs":              -87,
+	"hdrs":              -86,
+	"has_services":      -85, // before api versions, for proto
+	"include":           -84, // before exclude, for glob
+	"of":                -83, // for check_dependencies
+	"baseline":          -82, // for searchbox_library
 	// All others sort here, at 0.
 	"destdir":        1,
 	"exports":        2,
