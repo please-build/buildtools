@@ -169,7 +169,8 @@ var NamePriority = map[string]int{
 	"gwt_name":          -98,
 	"package_name":      -97,
 	"visible_node_name": -96, // for boq_initial_css_modules and boq_jswire_test_suite
-	"tag":               -95,
+	"build_rule.tag":    -95,
+	"filegroup.tag":     -95,
 	"size":              -94,
 	"timeout":           -93,
 	"testonly":          -92,
